@@ -266,6 +266,7 @@ func lex(txt string) ([]Token, []error) {
 
 		token := Token{}
 		token.lineno = ln
+		token.unary = false
 
 		c := data[i]
 
@@ -444,7 +445,7 @@ func lex(txt string) ([]Token, []error) {
 							c = data[i]
 
 							if int(i) > len(data)-1 {
-								errs = append(errs, errors.New("Abriviation had no ending comment symbol."+token.toString()))
+								errs = append(errs, errors.New("Abbreviation had no ending comment symbol."+token.toString()))
 							}
 						}
 					} else {
@@ -479,6 +480,19 @@ func lex(txt string) ([]Token, []error) {
 					i++
 					token.tokenType = TkQuo
 					token.sdata = "/"
+					token.precedence = 3
+				}
+
+			case "÷":
+				if data[i+1] == '=' {
+					i += 2
+					token.tokenType = TkQuoAssign
+					token.sdata = "÷="
+				} else {
+					i++
+					token.tokenType = TkQuo
+					token.sdata = "÷"
+					token.precedence = 3
 				}
 
 			case "\"":
@@ -528,6 +542,7 @@ func lex(txt string) ([]Token, []error) {
 					i++
 					token.tokenType = TkMul
 					token.sdata = "*"
+					token.precedence = 3
 				}
 
 			case "%":
@@ -539,6 +554,7 @@ func lex(txt string) ([]Token, []error) {
 					i++
 					token.tokenType = TkRem
 					token.sdata = "%"
+					token.precedence = 6
 				}
 
 			case "&":
@@ -558,6 +574,7 @@ func lex(txt string) ([]Token, []error) {
 					i += 2
 					token.tokenType = TkLand
 					token.sdata = "&&"
+					token.precedence = 2
 				} else {
 					i++
 					token.tokenType = TkAnd
@@ -573,6 +590,7 @@ func lex(txt string) ([]Token, []error) {
 					i += 2
 					token.tokenType = TkLor
 					token.sdata = "||"
+					token.precedence = 2
 				} else {
 					i++
 					token.tokenType = TkOr
@@ -588,6 +606,7 @@ func lex(txt string) ([]Token, []error) {
 					i++
 					token.tokenType = TkXor
 					token.sdata = "^"
+					token.precedence = 4
 				}
 
 			case "+":
@@ -603,6 +622,7 @@ func lex(txt string) ([]Token, []error) {
 					i++
 					token.tokenType = TkAdd
 					token.sdata = "+"
+					token.precedence = 2
 				}
 
 			case "-":
@@ -618,6 +638,15 @@ func lex(txt string) ([]Token, []error) {
 					i++
 					token.tokenType = TkSub
 					token.sdata = "-"
+					token.precedence = 2
+
+					if len(tokens) < 1 {
+						token.unary = true
+						token.precedence = 5
+					} else if tokens[len(tokens)-1].tokenType == TkAdd || tokens[len(tokens)-1].tokenType == TkSub || tokens[len(tokens)-1].tokenType == TkMul || tokens[len(tokens)-1].tokenType == TkQuo || tokens[len(tokens)-1].tokenType == TkRem {
+						token.unary = true
+						token.precedence = 5
+					}
 				}
 
 			case "'":
@@ -660,10 +689,12 @@ func lex(txt string) ([]Token, []error) {
 					i += 2
 					token.tokenType = TkLeq
 					token.sdata = "<="
+					token.precedence = 3
 				} else {
 					i++
 					token.tokenType = TkLss
 					token.sdata = "<"
+					token.precedence = 3
 				}
 
 			case ">":
@@ -679,10 +710,12 @@ func lex(txt string) ([]Token, []error) {
 					i += 2
 					token.tokenType = TkGeq
 					token.sdata = ">="
+					token.precedence = 3
 				} else {
 					i++
 					token.tokenType = TkGtr
 					token.sdata = ">"
+					token.precedence = 3
 				}
 
 			case "=":
@@ -690,6 +723,7 @@ func lex(txt string) ([]Token, []error) {
 					i += 2
 					token.tokenType = TkEql
 					token.sdata = "=="
+					token.precedence = 3
 				} else {
 					i++
 					token.tokenType = TkAssign
@@ -701,6 +735,7 @@ func lex(txt string) ([]Token, []error) {
 					i += 2
 					token.tokenType = TkNeq
 					token.sdata = "!="
+					token.precedence = 3
 				} else {
 					i++
 					token.tokenType = TkNot

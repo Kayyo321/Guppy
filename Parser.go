@@ -6,17 +6,16 @@ import (
 
 const (
 	NdStart         = "Start"
-	NdNone          = "None"
 	NdIdent         = "Ident"
 	NdEllipsis      = "Ellipsis"
 	NdFunctionDef   = "Function Def"
-	NdFuncitonParam = "Function Param"
+	NdFunctionParam = "Function Param"
 	NdFunctionBody  = "Function Body"
 	NdFunctionCall  = "Function Call"
 	NdStructDef     = "Struct Def"
 	NdStructCall    = "Struct Call"
 	NdReturn        = "Return"
-	NdAssign        = "Assign"
+	NdDecl          = "Declare"
 	NdDefine        = "Define"
 	NdCall          = "Call"
 	NdFor           = "For"
@@ -24,11 +23,13 @@ const (
 	NdElIf          = "Else If"
 	NdElse          = "Else"
 	NdImport        = "Import"
-	NdExpr          = "Expr"
 	NdBreak         = "Break"
 	NdContinue      = "Continue"
 	NdAttribute     = "Attribute"
 	NdSect          = "Section"
+	NdIncDec        = "Inc || Dec"
+	NdBinOp         = "Bin Op"
+	NdLit           = "Lit"
 )
 
 type Node struct {
@@ -155,6 +156,7 @@ func (p *Parser) peek() (*Token, error) {
 	return &p.tks[p.tI+1], nil
 }
 
+/** Unused
 func (p *Parser) barf() error {
 	if p.tI < 1 {
 		return errors.New("Could not barf to negative index")
@@ -165,6 +167,7 @@ func (p *Parser) barf() error {
 
 	return nil
 }
+*/
 
 func (p *Parser) parse() (*Node, []error) {
 	var errs []error
@@ -270,6 +273,8 @@ func (p *Parser) parseVarDecl(into *Node, until []int8, names []Token) []error {
 	var errs []error
 
 	vardcl := into.child()
+	vardcl.nt = NdDecl
+
 	for _, name := range names {
 		nameN := vardcl.child()
 		nameN.gt = &name
@@ -333,6 +338,8 @@ func (p *Parser) parseVarDef(into *Node, until []int8, names []Token) []error {
 	var errs []error
 
 	vardcl := into.child()
+	vardcl.nt = NdDefine
+
 	for _, name := range names {
 		nameN := vardcl.child()
 		nameN.gt = &name
@@ -366,7 +373,7 @@ func (p *Parser) parseFuncLit(into *Node, until []int8) []error {
 
 	param := fdef.child()
 	param.gt = p.t
-	param.nt = NdFuncitonParam
+	param.nt = NdFunctionParam
 	param.sdata = "Params"
 
 	for p.t.tokenType != TkRParen {
@@ -410,6 +417,162 @@ func (p *Parser) parseFuncLit(into *Node, until []int8) []error {
 	body.sdata = "Body"
 
 	errs = append(errs, p.rparse(body, []int8{TkRBrace})...)
+
+	return errs
+}
+
+func (p *Parser) parseExpr(into *Node, until []int8) []error {
+	var errs []error
+
+	var queue []Node
+	var stack []Node
+
+	for {
+		if p.t.tokenType == TkInt || p.t.tokenType == TkFloat {
+			lit := Node{}
+			lit.nt = NdLit
+			lit.gt = p.t
+			queue = append(queue, lit)
+		} else if p.t.tokenType == TkIdent {
+			tk, err := p.peek()
+			if err != nil {
+				errs = append(errs, err)
+				return errs
+			}
+
+			if tk.tokenType == TkLParen {
+				fcall := Node{}
+				fcall.nt = NdFunctionCall
+				fcall.gt = p.t
+				fcall.sdata = p.t.sdata
+
+				// Move to '('
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+				}
+
+				param := fcall.child()
+				param.nt = NdFunctionParam
+				param.gt = p.t
+				param.sdata = "Params"
+
+				for p.t.tokenType != TkRParen {
+					errs = append(errs, p.rparse(param, []int8{TkComma, TkRParen})...)
+					if p.t.tokenType == TkComma {
+						// Skip ','
+						if err := p.eat(); err != nil {
+							errs = append(errs, err)
+							break
+						}
+					}
+				}
+
+				queue = append(queue, fcall)
+			} else {
+				call := Node{}
+				call.nt = NdCall
+				call.gt = p.t
+				call.sdata = "VarCall"
+				queue = append(queue, call)
+			}
+		} else if p.t.tokenType == TkAdd || p.t.tokenType == TkSub || p.t.tokenType == TkMul || p.t.tokenType == TkQuo || p.t.tokenType == TkRem || p.t.tokenType == TkEql || p.t.tokenType == TkNeq || p.t.tokenType == TkLeq || p.t.tokenType == TkLss || p.t.tokenType == TkGeq || p.t.tokenType == TkGtr || p.t.tokenType == TkLand || p.t.tokenType == TkLor {
+			o1 := p.t
+
+			for len(stack) > 0 {
+				o2 := stack[len(stack)-1]
+
+				if (o1.sdata != "^" && o1.precedence <= o2.gt.precedence) || (o1.sdata == "^" && o1.precedence < o2.gt.precedence) {
+					stack = stack[:len(stack)-1]
+					queue = append(queue, o2)
+					continue
+				}
+
+				break
+			}
+
+			bo := Node{}
+			bo.gt = o1
+			bo.nt = NdBinOp
+			bo.sdata = "BinOp"
+			stack = append(stack, bo)
+		} else if p.t.tokenType == TkLParen {
+			lpa := Node{}
+			lpa.nt = NdLit
+			lpa.gt = p.t
+			lpa.sdata = "Lpa"
+			stack = append(stack, lpa)
+		} else if p.t.tokenType == TkRParen {
+			match := false
+
+			for len(stack) > 0 && stack[len(stack)-1].gt.tokenType != TkLParen {
+				queue = append(queue, stack[len(stack)-1])
+				stack = stack[:len(stack)-1]
+				match = true
+			}
+
+			if !match && len(stack) < 1 {
+				errs = append(errs, errors.New("Right parenthesis: "+p.t.toString()))
+				break
+			}
+
+			if len(stack) > 0 {
+				stack = stack[:len(stack)-1]
+				break
+			}
+		} else {
+			break
+		}
+
+		if err := p.eat(); err != nil {
+			errs = append(errs, err)
+			return errs
+		}
+	}
+
+	for len(stack) > 0 {
+		if stack[len(stack)-1].gt.tokenType == TkLParen {
+			errs = append(errs, errors.New("Mismatched parenthesis: "+p.t.toString()))
+			break
+		}
+
+		queue = append(queue, stack[len(stack)-1])
+		stack = stack[:len(stack)-1]
+	}
+
+	var i = len(queue) - 1
+	errs = append(errs, p.rcompute(into, queue, &i)...)
+
+	return errs
+}
+
+func (p *Parser) rcompute(into *Node, stack []Node, i *int) []error {
+	var errs []error
+
+	var passes uint = 0
+
+	for ; *i >= 0; *i-- {
+		if passes >= 2 {
+			break
+		}
+
+		n := stack[*i]
+
+		switch n.nt {
+		case NdLit, NdCall, NdFunctionCall:
+			x := into.child()
+			*x = n
+
+		case NdBinOp:
+			y := into.child()
+			*y = n
+			errs = append(errs, p.rcompute(y, stack, i)...)
+
+		default:
+			errs = append(errs, errors.New("Didn't expect node: "+n.toString()))
+		}
+
+		passes++
+	}
 
 	return errs
 }
@@ -514,7 +677,7 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 				}
 
 				param := fcall.child()
-				param.nt = NdFuncitonParam
+				param.nt = NdFunctionParam
 				param.gt = p.t
 				param.sdata = "Params"
 
@@ -528,15 +691,37 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 						}
 					}
 				}
+			} else if tk.tokenType == TkInc || tk.tokenType == TkDec || tk.tokenType == TkSqrInc {
+				inc := into.child()
+				inc.nt = NdIncDec
+				inc.gt = p.t
+				inc.sdata = p.t.sdata
+
+				// Move to ++ || -- || **
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+				}
+			} else if tk.tokenType == TkWhiteSpace || tk.tokenType == TkSemicolon {
+				call := into.child()
+				call.nt = NdCall
+				call.gt = p.t
+				call.sdata = "VarCall"
 			} else {
-				// TODO: Parse expression.
+				_until := until
+				_until = append(_until, []int8{TkWhiteSpace, TkSemicolon}...)
+				errs = append(errs, p.parseExpr(into, _until)...)
 			}
 
 		case TkFuncKw:
 			errs = append(errs, p.parseFuncLit(into, until)...)
 
 		case TkReturnKw:
-			errs = append(errs, p.rparse(into, []int8{TkWhiteSpace, TkSemicolon})...)
+			ret := into.child()
+			ret.nt = NdReturn
+			ret.gt = p.t
+			ret.sdata = "Return"
+
+			errs = append(errs, p.rparse(ret, []int8{TkWhiteSpace, TkSemicolon})...)
 
 		case TkBreakKw:
 			brk := into.child()
@@ -559,7 +744,7 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 			}
 
 		default:
-			errs = append(errs, errors.New("Did not expect to find token: " + p.t.toString()))
+			errs = append(errs, errors.New("Did not expect to find token: "+p.t.toString()))
 		}
 
 		for _, u := range until {
