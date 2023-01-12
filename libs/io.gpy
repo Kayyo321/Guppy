@@ -1,0 +1,194 @@
+package io
+
+/** Return a string based on console input */
+scan: func(string) string = func(prompt: string): string {
+    inBuf: [255]byte = nil
+
+    /** Inline assembly x86: */
+    <- "mov eax, 3"        // syscall number for read
+    <- "mov ebx, 0"        // file descriptor: stdin
+    <- "mov ecx, [rbp-255] // address of the buffer (inBuf)
+    <- "mov edx, 255       // buffer size (255)
+    <- "int 0x80"          // call kernel for syscall
+
+    str: string = ""
+
+    for i: int = 0; i < 255; i++ {
+        str += inBuf[i]
+    }
+
+    return str
+}
+
+/** Print a string */
+puts: func(string) = func(s: string) {
+    /** Inline assembly x86 */
+    <- "mov eax, [rbp+4]"     // get the address of the string from the parameter
+    <- "mov ebx, 1"           // file descriptor for stdout
+    <- "mov ecx, eax"         // address of the string
+    <- "mov edx, 0"           // count the length of the string
+    <- ".count_loop:"
+    <- "cmp byte[ecx+edx], 0" // Check if we've reached the end of the string
+    <- "je .print_string"
+    <- "inc edx"              // move to the next character
+    <- "jmp .count_loop"
+    <- ".print_string:"
+    <- "mov eax, 4"           // make the syscall for sys_write
+    <- "int 0x80"
+}
+
+/** Print an int */
+puti: func(int) = func(n: int) {
+    if n == 0 {
+        puts("0")
+        return
+    }
+
+    str: string = ""
+    sign: int = 1
+    if n < 0 {
+        sign = -1
+    }
+
+    n *= sign
+
+    for n > 0 {
+        str += (n % 10) + '0'
+        n /= 10
+    }
+
+    if sign == -1 {
+        str += "-"
+    }
+
+    // reverse the string
+    start: int = 0
+    end: int = len(str)-1
+    tmp: string = ""
+
+    for start < end {
+        tmp = str[start]
+        str[start] = str[end]
+        str[end] = tmp
+        start++
+        end--
+    }
+
+    puts(str)
+}
+
+/** Print a float */
+putf: func(float64) = func(f: float64) {
+    flt: float64 = f
+    if f < 0 {
+        flt *= -1
+        puts("-")
+    }
+
+    decimal: float64 = flt % 1
+    whole: int = flt - decimal
+
+    puti(whole)
+    puts(".")
+
+    // multiply by a power of 10 to remove decimal point
+    newDecimal: int = decimal * 10000000000
+
+    puti(newDecimal)
+}
+
+/** Print a byte */
+putb: func(byte) = func(b: byte) {
+    /** Inline assembly x86 */
+    <- "mov dl, byte [rbp+4]"
+    <- "add dl, 48"
+    <- "mov ebx, 1"
+    <- "mov ecx, dl"
+    <- "mov edx, 1"
+    <- "mov eax, 4"
+    <- "int 0x80"
+}
+
+/** Print a boolean */
+putbl: func(bool) = func(b: bool) {
+    if b == 0 {
+        puts("false")
+    } else {
+        puts("true")
+    }
+}
+
+/** Print a formatted string */
+printf: func(string, ...) = func(fmt: string, ...) {
+    curBitShift: int = 8 // Skip format str
+
+    /** Inline assembly x86 */
+    <- "mov rax, [rbp-4]
+
+    for i: int = 0; i < len(fmt); i++ {
+        c: byte = fmt[i]
+
+        if c == '%' {
+            i++
+            c = fmt[i]
+
+            if c == 'd' {
+                curBitShift += 4
+                d: int = 0
+
+                /** Inline assembly x86 */
+                <- "mov [rbp-8], [rbp+rax]
+
+                puti(d)
+            } else if c == 'f' {
+                curBitShift += 8
+                f: float64 = 0.0
+
+                /** Inline assembly x86 */
+                <- "mov [rbp-12], [rbp+rax]
+
+                putf(f)
+            } else if c == 'c' {
+                curBitShift++
+                b: byte = '_'
+
+                /** Inline assembly x86 */
+                <- "mov [rbp-5], [rbp+rax]
+
+                putb(b)
+            } else if c == 's' {
+                b: byte = '_'
+                s: string = ""
+
+                /** Inline assembly x86 */
+                <- "mov eax, rax"
+                <- ".loop:"
+                <- "cmp [rbp+rax], 0"
+                <- "je .exit"
+                <- "inc rax"
+                <- "mov [rbp-5], [rbp+rax]"
+
+                s += b
+
+                /** Inline assembly x86 */
+                <- "jmp .loop"
+                <- ".exit:"
+
+                puts(s)
+            } else if c == 'b' {
+                curBitShift++
+                b: bool = false
+
+                /** Inline assembly x86 */
+                <- "mov [rbp-5], [rbp+rax]
+
+                putbl(b)
+            } else {
+                puts("%")
+                putb(c)
+            }
+        } else {
+            putb(c)
+        }
+    }
+}
