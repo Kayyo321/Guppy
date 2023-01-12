@@ -237,11 +237,13 @@ var tokenTypeStrings []string = []string{
 }
 
 type Token struct {
-	tokenType int8
-	lineno    uint
-	sdata     string
-	idata     int
-	fdata     float64
+	tokenType  int8
+	lineno     uint
+	sdata      string
+	idata      int
+	fdata      float64
+	precedence int
+	unary      bool
 }
 
 func (gt Token) toString() string {
@@ -750,7 +752,7 @@ func lex(txt string) ([]Token, []error) {
 		}
 	}
 
-	tokens = append(tokens, Token{1, ln + 1, "__eof__", 0, 0.0})
+	tokens = append(tokens, Token{1, ln + 1, "__eof__", 0, 0.0, 0, false})
 
 	return tokens, errs
 }
