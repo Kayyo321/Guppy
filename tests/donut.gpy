@@ -4,28 +4,28 @@ package main
 import io, math, time
 
 delay: float64, const = 16 * time.millisecond
-ascii: string,  const = ".,-~:;=!*#$@"
+ascii: string, const = ".,-~:;=!*#$@"
 
-floatSet: func([]float64, float64) = func(arr: []float64, v: float64) {
+floatSet := func(arr: [float64], v: float64) {
     l: int = size(arr)
     for i: int = 0; i < l; i++ {
         arr[i] = v
     }
 }
 
-byteSet: func([]string, string) = func(arr: []string, v: string) {
+byteSet := func(arr: [string], v: string) {
     l: int = size(arr)
     for i: int = 0; i < l; i++ {
         arr[i] = v
     }
 }
 
-A, B, i, j: float64 = 0.0, 0.0, 0.0, 0.0
+A, B, i, j: float64 = 0.0
 k: int = 0
-z: [1760]float64 = nil
-b: [1760]string  = nil
+z: [1760, float64] = nil
+b: [1760, string] = nil
 
-io | print("\033[H\033[2J") // Clear previous stdout.
+io | puts("\033[H\033[2J") // Clear previous stdout.
 
 for {
     byteSet(b, " ")
@@ -66,7 +66,7 @@ for {
         }
     }
 
-    io | print("\x1b[H")
+    io | puts("\x1b[H")
 
     for k = 0; k < 1761; k++ {
         v: string = "\n"
@@ -75,7 +75,7 @@ for {
             v = string(b[k])
         }
 
-        io | print(v)
+        io | puts(v)
 
         A += .00004
         B += .00002

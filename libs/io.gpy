@@ -1,8 +1,8 @@
 package io
 
 /** Return a string based on console input */
-scan: func(string) string = func(prompt: string): string {
-    inBuf: [255]byte = nil
+scan := func(prompt: string): string {
+    inBuf: [255, byte] = nil
 
     /** Inline assembly x86: */
     <- "mov eax, 3"        // syscall number for read
@@ -21,7 +21,7 @@ scan: func(string) string = func(prompt: string): string {
 }
 
 /** Print a string */
-puts: func(string) = func(s: string) {
+puts := func(s: string) {
     /** Inline assembly x86 */
     <- "mov eax, [rbp+4]"     // get the address of the string from the parameter
     <- "mov ebx, 1"           // file descriptor for stdout
@@ -38,7 +38,7 @@ puts: func(string) = func(s: string) {
 }
 
 /** Print an int */
-puti: func(int) = func(n: int) {
+puti := func(n: int) {
     if n == 0 {
         puts("0")
         return
@@ -78,7 +78,7 @@ puti: func(int) = func(n: int) {
 }
 
 /** Print a float */
-putf: func(float64) = func(f: float64) {
+putf := func(f: float64) {
     flt: float64 = f
     if f < 0 {
         flt *= -1
@@ -98,7 +98,7 @@ putf: func(float64) = func(f: float64) {
 }
 
 /** Print a byte */
-putb: func(byte) = func(b: byte) {
+putb := func(b: byte) {
     /** Inline assembly x86 */
     <- "mov dl, byte [rbp+4]"
     <- "add dl, 48"
@@ -110,7 +110,7 @@ putb: func(byte) = func(b: byte) {
 }
 
 /** Print a boolean */
-putbl: func(bool) = func(b: bool) {
+putbl := func(b: bool) {
     if b == 0 {
         puts("false")
     } else {
@@ -119,7 +119,7 @@ putbl: func(bool) = func(b: bool) {
 }
 
 /** Print a formatted string */
-printf: func(string, ...) = func(fmt: string, ...) {
+printf := func(fmt: string, xyz: ...) {
     curBitShift: int = 8 // Skip format str
 
     /** Inline assembly x86 */

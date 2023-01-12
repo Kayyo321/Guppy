@@ -5,28 +5,30 @@ import (
 )
 
 const (
-	NdStart       = "Start"
-	NdNone        = "None"
-	NdIdent       = "Ident"
-	NdModule      = "Module"
-	NdExpression  = "Expression"
-	NdFunctionDef = "FunctionDef"
-	NdStructDef   = "StructDef"
-	NdReturn      = "Return"
-	NdDelete      = "Delete"
-	NdAssign      = "Assign"
-	NdDefine      = "Define"
-	NdFor         = "For"
-	NdIf          = "If"
-	NdElIf        = "ElIf"
-	NdElse        = "Else"
-	NdAssert      = "Assert"
-	NdImport      = "Import"
-	NdExpr        = "Expr"
-	NdPass        = "Pass"
-	NdBreak       = "Break"
-	NdContinue    = "Continue"
-	NdAttribute   = "Attribute"
+	NdStart         = "Start"
+	NdNone          = "None"
+	NdIdent         = "Ident"
+	NdEllipsis      = "Ellipsis"
+	NdFunctionDef   = "Function Def"
+	NdFuncitonParam = "Function Param"
+	NdFunctionBody  = "Function Body"
+	NdFunctionCall  = "Function Call"
+	NdStructDef     = "Struct Def"
+	NdStructCall    = "Struct Call"
+	NdReturn        = "Return"
+	NdAssign        = "Assign"
+	NdDefine        = "Define"
+	NdCall          = "Call"
+	NdFor           = "For"
+	NdIf            = "If"
+	NdElIf          = "Else If"
+	NdElse          = "Else"
+	NdImport        = "Import"
+	NdExpr          = "Expr"
+	NdBreak         = "Break"
+	NdContinue      = "Continue"
+	NdAttribute     = "Attribute"
+	NdSect          = "Section"
 )
 
 type Node struct {
@@ -232,6 +234,33 @@ func (p *Parser) typeToBSize() uint {
 		bsize = 1
 	case TkInt16Kw, TkUInt16Kw:
 		bsize = 2
+	case TkLBrack:
+		// [10, int]
+
+		// Skip '['
+		p.eat()
+
+		if p.t.tokenType == TkInt {
+			count := p.t.idata
+
+			err := p.assert([]int8{TkComma})
+			if err != nil {
+				break
+			}
+
+			p.eat()
+
+			sz := p.typeToBSize()
+
+			bsize = sz * uint(count)
+
+			errx := p.assert([]int8{TkRBrack})
+			if errx != nil {
+				break
+			}
+		} else {
+			bsize = 8
+		}
 	}
 	return bsize
 }
@@ -254,6 +283,19 @@ func (p *Parser) parseVarDecl(into *Node, until []int8, names []Token) []error {
 	}
 
 	vardcl.bytes = p.typeToBSize() * uint(len(names))
+	if vardcl.bytes == 0 {
+		if p.t.tokenType == TkEllipsis {
+			el := vardcl.child()
+			el.nt = NdEllipsis
+			el.gt = p.t
+			el.sdata = "..."
+		} else {
+			tp := vardcl.child()
+			tp.nt = NdStructDef
+			tp.gt = p.t
+			tp.sdata = "struct"
+		}
+	}
 
 	// Skip type
 	if err := p.eat(); err != nil {
@@ -267,6 +309,11 @@ func (p *Parser) parseVarDecl(into *Node, until []int8, names []Token) []error {
 			return errs
 		}
 
+		cnst := vardcl.child()
+		cnst.gt = p.t
+		cnst.nt = NdSect
+		cnst.sdata = "const"
+
 		// Skip 'const'
 		if err := p.eat(); err != nil {
 			errs = append(errs, err)
@@ -275,7 +322,7 @@ func (p *Parser) parseVarDecl(into *Node, until []int8, names []Token) []error {
 	}
 
 	if p.t.tokenType == TkAssign {
-
+		errs = append(errs, p.rparse(into, []int8{TkWhiteSpace, TkSemicolon})...)
 	}
 
 	return errs
@@ -284,6 +331,85 @@ func (p *Parser) parseVarDecl(into *Node, until []int8, names []Token) []error {
 // y := 30
 func (p *Parser) parseVarDef(into *Node, until []int8, names []Token) []error {
 	var errs []error
+
+	vardcl := into.child()
+	for _, name := range names {
+		nameN := vardcl.child()
+		nameN.gt = &name
+		nameN.sdata = name.sdata
+	}
+
+	// Skip ':='
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	errs = append(errs, p.rparse(into, []int8{TkWhiteSpace, TkSemicolon})...)
+
+	return errs
+}
+
+// func(x: int, y: int): int { return x + y; }
+func (p *Parser) parseFuncLit(into *Node, until []int8) []error {
+	var errs []error
+
+	fdef := into.child()
+	fdef.gt = p.t
+	fdef.nt = NdFunctionDef
+	fdef.sdata = p.t.sdata
+
+	if err := p.assert([]int8{TkLParen}); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	param := fdef.child()
+	param.gt = p.t
+	param.nt = NdFuncitonParam
+	param.sdata = "Params"
+
+	for p.t.tokenType != TkRParen {
+		errs = append(errs, p.rparse(param, []int8{TkComma, TkRParen})...)
+		if p.t.tokenType == TkComma {
+			// Skip ','
+			if err := p.eat(); err != nil {
+				errs = append(errs, err)
+				return errs
+			}
+		}
+	}
+
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	if p.t.tokenType == TkColon {
+		// Skip ':'
+		if err := p.eat(); err != nil {
+			errs = append(errs, err)
+			return errs
+		}
+
+		fdef.bytes = p.typeToBSize()
+
+		// Skip type, go to '{'
+		if err := p.assert([]int8{TkLBrace}); err != nil {
+			errs = append(errs, err)
+			return errs
+		}
+	} else if p.t.tokenType != TkLBrace {
+		errs = append(errs, errors.New("Function did not have body: "+p.t.toString()))
+		return errs
+	}
+
+	body := fdef.child()
+	body.nt = NdFunctionBody
+	body.gt = p.t
+	body.sdata = "Body"
+
+	errs = append(errs, p.rparse(body, []int8{TkRBrace})...)
 
 	return errs
 }
@@ -309,22 +435,19 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 			tk, err := p.peek()
 			if err != nil {
 				errs = append(errs, err)
-				return errs
 			}
 
 			if tk.tokenType == TkComma { // ,
 				names = append(names, *p.t)
 
-				// Goto ','
+				// Move to ','
 				if err := p.eat(); err != nil {
 					errs = append(errs, err)
-					return errs
 				}
 
 				// Skip ','
 				if err := p.eat(); err != nil {
 					errs = append(errs, err)
-					return errs
 				}
 
 				goto getNames
@@ -334,7 +457,6 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 
 				if err := p.eat(); err != nil {
 					errs = append(errs, err)
-					return errs
 				}
 
 				errs = append(errs, p.parseVarDecl(into, until, names)...)
@@ -343,11 +465,101 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 
 				if err := p.eat(); err != nil {
 					errs = append(errs, err)
-					return errs
 				}
 
 				errs = append(errs, p.parseVarDef(into, until, names)...)
+			} else if tk.tokenType == TkOr { // |
+				attr := into.child()
+				attr.nt = NdAttribute
+				attr.gt = p.t
+				attr.sdata = p.t.sdata
+
+				// Move to '|'
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+				}
+
+				// Skip '|'
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+				}
+
+				errs = append(errs, p.rparse(attr, []int8{TkWhiteSpace, TkSemicolon})...)
+			} else if tk.tokenType == TkPeriod { // .
+				strcall := into.child()
+				strcall.nt = NdStructCall
+				strcall.gt = p.t
+				strcall.sdata = p.t.sdata
+
+				// Move to '.'
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+				}
+
+				// Skip '.'
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+				}
+
+				errs = append(errs, p.rparse(strcall, []int8{TkWhiteSpace, TkSemicolon})...)
+			} else if tk.tokenType == TkLParen { // (
+				fcall := into.child()
+				fcall.nt = NdFunctionCall
+				fcall.gt = p.t
+				fcall.sdata = p.t.sdata
+
+				// Move to '('
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+				}
+
+				param := fcall.child()
+				param.nt = NdFuncitonParam
+				param.gt = p.t
+				param.sdata = "Params"
+
+				for p.t.tokenType != TkRParen {
+					errs = append(errs, p.rparse(param, []int8{TkComma, TkRParen})...)
+					if p.t.tokenType == TkComma {
+						// Skip ','
+						if err := p.eat(); err != nil {
+							errs = append(errs, err)
+							break
+						}
+					}
+				}
+			} else {
+				// TODO: Parse expression.
 			}
+
+		case TkFuncKw:
+			errs = append(errs, p.parseFuncLit(into, until)...)
+
+		case TkReturnKw:
+			errs = append(errs, p.rparse(into, []int8{TkWhiteSpace, TkSemicolon})...)
+
+		case TkBreakKw:
+			brk := into.child()
+			brk.nt = NdBreak
+			brk.gt = p.t
+			brk.sdata = "Break"
+
+			if err := p.assert([]int8{TkWhiteSpace, TkSemicolon}); err != nil {
+				errs = append(errs, err)
+			}
+
+		case TkContinueKw:
+			con := into.child()
+			con.nt = NdContinue
+			con.gt = p.t
+			con.sdata = "Continue"
+
+			if err := p.assert([]int8{TkWhiteSpace, TkSemicolon}); err != nil {
+				errs = append(errs, err)
+			}
+
+		default:
+			errs = append(errs, errors.New("Did not expect to find token: " + p.t.toString()))
 		}
 
 		for _, u := range until {
