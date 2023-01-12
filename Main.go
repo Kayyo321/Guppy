@@ -1,27 +1,28 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 )
 
+func usage() {
+	fmt.Println("gup <flags> <files>")
+	os.Exit(0)
+}
+
 func main() {
-	scnr := bufio.NewScanner(os.Stdin)
-
-	var data string
-
-	for {
-		fmt.Print("comp (\"~run\" to run file) $ ")
-		scnr.Scan()
-
-		txt := scnr.Text()
-		if txt == "~run" {
-			break
-		} else {
-			data += txt
-		}
+	if len(os.Args) < 2 {
+		usage()
 	}
+
+	filename := os.Args[1]
+	bytes, err := os.ReadFile(filename)
+	if err != nil {
+		fmt.Println("Error reading: \""+filename+"\":", err)
+		os.Exit(1)
+	}
+
+	data := string(bytes)
 
 	tokens, errs := lex(data)
 	if len(errs) != 0 {

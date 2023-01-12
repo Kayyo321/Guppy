@@ -3,7 +3,7 @@ package main
 
 import io, math, time
 
-delay: float64, const = 16 * time.millisecond
+delay: float64, const = 16 * time | millisecond
 ascii: string, const = ".,-~:;=!*#$@"
 
 floatSet := func(arr: [float64], v: float64) {
@@ -27,7 +27,7 @@ b: [1760, string] = nil
 
 io | puts("\033[H\033[2J") // Clear previous stdout.
 
-for {
+while true {
     byteSet(b, " ")
     floatSet(z, 0.0)
 

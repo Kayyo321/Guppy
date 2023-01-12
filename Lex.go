@@ -123,8 +123,9 @@ const (
 	TkVersionNum  int8 = 102
 	TkSqrInc      int8 = 103
 
-	TkByteKw int8 = 104
-	TkBoolKw int8 = 105
+	TkByteKw  int8 = 104
+	TkBoolKw  int8 = 105
+	TkWhileKw int8 = 106
 )
 
 var tokenTypeStrings []string = []string{
@@ -234,6 +235,7 @@ var tokenTypeStrings []string = []string{
 	"__tk_Square_Increment",
 	"byte",
 	"bool",
+	"while",
 }
 
 type Token struct {
