@@ -10,7 +10,7 @@ const (
 	NdEllipsis      = "Ellipsis"
 	NdFunctionDef   = "Function Def"
 	NdFunctionParam = "Function Param"
-	NdFunctionBody  = "Function Body"
+	NdBody          = "Function NdBody"
 	NdFunctionCall  = "Function Call"
 	NdStructDef     = "Struct Def"
 	NdStructCall    = "Struct Call"
@@ -412,9 +412,9 @@ func (p *Parser) parseFuncLit(into *Node, until []int8) []error {
 	}
 
 	body := fdef.child()
-	body.nt = NdFunctionBody
+	body.nt = NdBody
 	body.gt = p.t
-	body.sdata = "Body"
+	body.sdata = "NdBody"
 
 	errs = append(errs, p.rparse(body, []int8{TkRBrace})...)
 
@@ -577,6 +577,100 @@ func (p *Parser) rcompute(into *Node, stack []Node, i *int) []error {
 	return errs
 }
 
+func (p *Parser) parseStructLit(into *Node, until []int8) []error {
+	var errs []error
+
+	if err := p.assert([]int8{TkLBrace}); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	errs = append(errs, p.rparse(into, []int8{TkRBrace})...)
+
+	return errs
+}
+
+func (p *Parser) parseIfStmt(into *Node, until []int8) []error {
+	var errs []error
+
+	ifstmt := into.child()
+	ifstmt.nt = NdIf
+	ifstmt.gt = p.t
+	ifstmt.sdata = "If Statement"
+
+	errs = append(errs, p.parseExpr(ifstmt, []int8{TkLBrace})...)
+
+	body := ifstmt.child()
+	body.nt = NdBody
+	body.gt = p.t
+	body.sdata = "Body"
+
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	errs = append(errs, p.rparse(body, []int8{TkRBrace})...)
+
+	for p.t.tokenType == TkElseKw {
+		tk, err := p.peek()
+		if err != nil {
+			errs = append(errs, err)
+			break
+		}
+
+		if tk.tokenType == TkIfKw {
+			elstmt := into.child()
+			elstmt.nt = NdElIf
+			elstmt.gt = p.t
+			elstmt.sdata = "Else If Statement"
+
+			errs = append(errs, p.parseExpr(elstmt, []int8{TkLBrace})...)
+
+			body := elstmt.child()
+			body.nt = NdBody
+			body.gt = p.t
+			body.sdata = "Body"
+
+			if err := p.eat(); err != nil {
+				errs = append(errs, err)
+				break
+			}
+
+			errs = append(errs, p.rparse(body, []int8{TkRBrace})...)
+		} else {
+			elstmt := into.child()
+			elstmt.nt = NdElse
+			elstmt.gt = p.t
+			elstmt.sdata = "Else Statement"
+
+			if err := p.assert([]int8{TkLBrace}); err != nil {
+				errs = append(errs, err)
+				break
+			}
+
+			if err := p.eat(); err != nil {
+				errs = append(errs, err)
+				break
+			}
+
+			body := elstmt.child()
+			body.nt = NdBody
+			body.gt = p.t
+			body.sdata = "Body"
+
+			errs = append(errs, p.rparse(body, []int8{TkRBrace})...)
+		}
+
+		if err := p.eat(); err != nil {
+			errs = append(errs, err)
+			break
+		}
+	}
+
+	return errs
+}
+
 func (p *Parser) rparse(into *Node, until []int8) []error {
 	var errs []error
 
@@ -714,6 +808,12 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 
 		case TkFuncKw:
 			errs = append(errs, p.parseFuncLit(into, until)...)
+
+		case TkStructKw:
+			errs = append(errs, p.parseStructLit(into, until)...)
+
+		case TkIfKw:
+			errs = append(errs, p.parseIfStmt(into, until)...)
 
 		case TkReturnKw:
 			ret := into.child()
