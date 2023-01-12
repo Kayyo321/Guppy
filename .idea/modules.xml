@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/MyLisp.iml" filepath="$PROJECT_DIR$/.idea/MyLisp.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Guppy.iml" filepath="$PROJECT_DIR$/.idea/Guppy.iml" />
     </modules>
   </component>
 </project>

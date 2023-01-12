@@ -1041,6 +1041,8 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 				if err := p.eat(); err != nil {
 					errs = append(errs, err)
 				}
+			} else if tk.tokenType == TkLBrack { // [
+				// TODO: Parse indexing
 			} else if tk.tokenType == TkWhiteSpace || tk.tokenType == TkSemicolon {
 				call := into.child()
 				call.nt = NdCall
