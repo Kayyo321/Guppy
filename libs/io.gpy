@@ -70,7 +70,7 @@ puti := func(n: int) {
 
     n *= sign
 
-    for n > 0 {
+    while n > 0 {
         str += (n % 10) + '0'
         n /= 10
     }
@@ -84,7 +84,7 @@ puti := func(n: int) {
     end: int = len(str)-1
     tmp: string = ""
 
-    for start < end {
+    while start < end {
         tmp = str[start]
         str[start] = str[end]
         str[end] = tmp
