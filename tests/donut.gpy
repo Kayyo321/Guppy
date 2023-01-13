@@ -1,7 +1,41 @@
-/** Spinning donut demonstration. */
 package main
 
-import io, math, time
+for i = 0; i < 6.28; i += .02 {
+    c: float64 = math | sin(i)
+    d: float64 = math | cos(j)
+    e: float64 = math | sin(A)
+    f: float64 = math | sin(j)
+    g: float64 = math | cos(A)
+    h: float64 = d + 2
+    D: float64 = 1 / (c * h * e + f * g + 5)
+    l: float64 = math | cos(i)
+    m: float64 = math | cos(B)
+    n: float64 = math | sin(B)
+    t: float64 = c * h * g - f * e
+
+    x: int = (40 + 20 * D * (l * h * m - t * n))
+    y: int = (12 + 15 * D * (l * h * n + t * m))
+
+    o: int = x + 80 * y
+
+    N: int = 8 * ((f * e - c * d * g) * m - c * d * e - f * g - l * d * n)
+
+    if y < 22 && y > 0 && x > 0 && x < 80 && D > z[o] {
+        z[o] = D
+
+        point: int = 0
+
+        if N > 0 {
+            point = N
+        }
+
+        b[o] = ascii[point]
+    }
+}
+
+/*package main
+
+import io, math, time, convert
 
 delay: float64, const = 16 * time | millisecond
 ascii: string, const = ".,-~:;=!*#$@"
@@ -72,7 +106,7 @@ while true {
         v: string = "\n"
 
         if k % 80 > 0 {
-            v = string(b[k])
+            v = convert | bToString(b[k])
         }
 
         io | puts(v)
@@ -82,4 +116,4 @@ while true {
     }
 
     time | sleep(delay)
-}
+}*/

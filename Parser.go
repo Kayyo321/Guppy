@@ -476,7 +476,7 @@ func (p *Parser) parseExpr(into *Node, until []int8) []error {
 			break
 		}
 
-		if p.t.tokenType == TkInt || p.t.tokenType == TkFloat || p.t.tokenType == TkString {
+		if p.t.tokenType == TkInt || p.t.tokenType == TkFloat || p.t.tokenType == TkString || p.t.tokenType == TkNilKw {
 			lit := Node{}
 			lit.nt = NdLit
 			lit.gt = p.t
@@ -486,6 +486,25 @@ func (p *Parser) parseExpr(into *Node, until []int8) []error {
 			if err != nil {
 				errs = append(errs, err)
 				return errs
+			}
+
+			for _, u := range until {
+				if u == tk.tokenType || tk.tokenType == TkEof {
+					call := Node{}
+					call.nt = NdCall
+					call.gt = p.t
+					call.sdata = "VarCall"
+					if err := p.eat(); err != nil {
+						errs = append(errs, err)
+					}
+					abort = true
+					queue = append(queue, call)
+					break
+				}
+			}
+
+			if abort {
+				break
 			}
 
 			if tk.tokenType == TkOr { // |
@@ -540,6 +559,10 @@ func (p *Parser) parseExpr(into *Node, until []int8) []error {
 				param.gt = p.t
 				param.sdata = "Params"
 
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+				}
+
 				for p.t.tokenType != TkRParen {
 					errs = append(errs, p.rparse(param, []int8{TkComma, TkRParen})...)
 					if p.t.tokenType == TkComma {
@@ -558,28 +581,64 @@ func (p *Parser) parseExpr(into *Node, until []int8) []error {
 				inc.gt = tk
 				inc.sdata = tk.sdata
 
+				vcall := inc.child()
+				vcall.nt = NdCall
+				vcall.gt = p.t
+
 				// Move to ++ || -- || **
 				if err := p.eat(); err != nil {
 					errs = append(errs, err)
 				}
 
 				queue = append(queue, inc)
-			} else if tk.tokenType == TkWhiteSpace || tk.tokenType == TkSemicolon {
+			} else if tk.tokenType == TkLBrack { // [
+				index := Node{}
+				index.nt = NdIndex
+				index.sdata = "Index"
+
+				varname := index.child()
+				varname.gt = p.t
+				varname.nt = NdCall
+
+				// Move to the index literal
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+					break
+				}
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+					break
+				}
+
+				num := index.child()
+				num.nt = NdLit
+
+				errs = append(errs, p.rparse(num, []int8{TkRBrack})...)
+
+				pk, err := p.peek()
+				if err != nil {
+					errs = append(errs, err)
+					break
+				}
+
+				body := index.child()
+				body.nt = NdBody
+
+				if pk.tokenType == TkAssign || pk.tokenType == TkOrAssign || pk.tokenType == TkAddAssign || pk.tokenType == TkAndAssign || pk.tokenType == TkMulAssign || pk.tokenType == TkAndNotAssign || pk.tokenType == TkQuoAssign || pk.tokenType == TkRemAssign || pk.tokenType == TkShlAssign || pk.tokenType == TkShrAssign || pk.tokenType == TkSubAssign || pk.tokenType == TkXorAssign {
+					errs = append(errs, p.parseAssign(body, []int8{TkWhiteSpace, TkSemicolon})...)
+				}
+
+				queue = append(queue, index)
+			} else if tk.tokenType == TkAssign || tk.tokenType == TkOrAssign || tk.tokenType == TkAddAssign || tk.tokenType == TkAndAssign || tk.tokenType == TkMulAssign || tk.tokenType == TkAndNotAssign || tk.tokenType == TkQuoAssign || tk.tokenType == TkRemAssign || tk.tokenType == TkShlAssign || tk.tokenType == TkShrAssign || tk.tokenType == TkSubAssign || tk.tokenType == TkXorAssign {
+				asn := Node{}
+				errs = append(errs, p.parseAssign(&asn, until)...)
+				queue = append(queue, asn)
+			} else {
 				call := Node{}
 				call.nt = NdCall
 				call.gt = p.t
 				call.sdata = "VarCall"
 				queue = append(queue, call)
-			} else if tk.tokenType == TkAssign || tk.tokenType == TkOrAssign || tk.tokenType == TkAddAssign || tk.tokenType == TkAndAssign || tk.tokenType == TkMulAssign || tk.tokenType == TkAndNotAssign || tk.tokenType == TkQuoAssign || tk.tokenType == TkRemAssign || tk.tokenType == TkShlAssign || tk.tokenType == TkShrAssign || tk.tokenType == TkSubAssign || tk.tokenType == TkXorAssign {
-				in := Node{}
-				errs = append(errs, p.parseAssign(&in, until)...)
-				queue = append(queue, in)
-			} else {
-				_until := until
-				_until = append(_until, []int8{TkWhiteSpace, TkSemicolon}...)
-				in := Node{}
-				errs = append(errs, p.parseExpr(&in, _until)...)
-				queue = append(queue, in)
 			}
 		} else if p.t.tokenType == TkAdd || p.t.tokenType == TkSub || p.t.tokenType == TkMul || p.t.tokenType == TkQuo || p.t.tokenType == TkRem || p.t.tokenType == TkEql || p.t.tokenType == TkNeq || p.t.tokenType == TkLeq || p.t.tokenType == TkLss || p.t.tokenType == TkGeq || p.t.tokenType == TkGtr || p.t.tokenType == TkLand || p.t.tokenType == TkLor {
 			o1 := p.t
@@ -623,6 +682,10 @@ func (p *Parser) parseExpr(into *Node, until []int8) []error {
 
 			if len(stack) > 0 {
 				stack = stack[:len(stack)-1]
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+					return errs
+				}
 				break
 			}
 		} else {
@@ -646,10 +709,10 @@ func (p *Parser) parseExpr(into *Node, until []int8) []error {
 	}
 
 	for len(stack) > 0 {
-		if stack[len(stack)-1].gt.tokenType == TkLParen {
-			errs = append(errs, errors.New("Mismatched parenthesis: "+p.t.toString()))
-			break
-		}
+		//if stack[len(stack)-1].gt.tokenType == TkLParen {
+		//	errs = append(errs, errors.New("Mismatched parenthesis: "+p.t.toString()))
+		//	break
+		//}
 
 		queue = append(queue, stack[len(stack)-1])
 		stack = stack[:len(stack)-1]
@@ -674,7 +737,7 @@ func (p *Parser) rcompute(into *Node, stack []Node, i *int) []error {
 		n := stack[*i]
 
 		switch n.nt {
-		case NdLit, NdCall, NdFunctionCall, NdStructCall, NdAttribute:
+		case NdLit, NdCall, NdFunctionCall, NdStructCall, NdAttribute, NdIndex:
 			x := into.child()
 			*x = n
 
@@ -733,6 +796,11 @@ func (p *Parser) parseIfStmt(into *Node, until []int8) []error {
 
 	errs = append(errs, p.rparse(body, []int8{TkRBrace})...)
 
+	// Skip '}'
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+	}
+
 	for p.t.tokenType == TkElseKw {
 		tk, err := p.peek()
 		if err != nil {
@@ -789,6 +857,13 @@ func (p *Parser) parseIfStmt(into *Node, until []int8) []error {
 		}
 	}
 
+	// Skip '}'
+	if p.t.tokenType == TkRBrace {
+		if err := p.eat(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
 	return errs
 }
 
@@ -810,7 +885,13 @@ func (p *Parser) parseForStmt(into *Node, until []int8) []error {
 	forinit := forstmt.child()
 	forinit.nt = NdForInit
 
-	errs = append(errs, p.parseExpr(forinit, []int8{TkSemicolon})...)
+	errs = append(errs, p.rparse(forinit, []int8{TkSemicolon})...)
+
+	// Skip ';'
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
 
 	// For bool
 	forbool := forstmt.child()
@@ -818,11 +899,17 @@ func (p *Parser) parseForStmt(into *Node, until []int8) []error {
 
 	errs = append(errs, p.parseExpr(forbool, []int8{TkSemicolon})...)
 
+	// Skip ';'
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
 	// For inc
 	forinc := forstmt.child()
 	forinc.nt = NdForInc
 
-	errs = append(errs, p.parseExpr(forinc, []int8{TkLBrace})...)
+	errs = append(errs, p.rparse(forinc, []int8{TkLBrace})...)
 
 	body := forstmt.child()
 	body.nt = NdBody
@@ -836,6 +923,12 @@ func (p *Parser) parseForStmt(into *Node, until []int8) []error {
 	}
 
 	errs = append(errs, p.rparse(body, []int8{TkRBrace})...)
+
+	// Skip '}'
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
 
 	return errs
 }
@@ -860,12 +953,19 @@ func (p *Parser) parseWhileStmt(into *Node, until []int8) []error {
 	body.gt = p.t
 	body.sdata = "Body"
 
+	// Skip '{'
 	if err := p.eat(); err != nil {
 		errs = append(errs, err)
 		return errs
 	}
 
 	errs = append(errs, p.rparse(body, []int8{TkRBrace})...)
+
+	// Skip '}'
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
 
 	return errs
 }
@@ -911,6 +1011,9 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 		}
 
 		switch p.t.tokenType {
+		case TkEof:
+			return errs
+
 		case TkImportKw:
 			errs = append(errs, p.parseImport(into, until)...)
 
@@ -1032,17 +1135,55 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 					}
 				}
 			} else if tk.tokenType == TkInc || tk.tokenType == TkDec || tk.tokenType == TkSqrInc {
-				inc := into.child()
+				inc := Node{}
 				inc.nt = NdIncDec
 				inc.gt = tk
 				inc.sdata = tk.sdata
+
+				vcall := inc.child()
+				vcall.nt = NdCall
+				vcall.gt = p.t
 
 				// Move to ++ || -- || **
 				if err := p.eat(); err != nil {
 					errs = append(errs, err)
 				}
 			} else if tk.tokenType == TkLBrack { // [
-				// TODO: Parse indexing
+				index := into.child()
+				index.nt = NdIndex
+				index.sdata = "Index"
+
+				varname := index.child()
+				varname.gt = p.t
+				varname.nt = NdCall
+
+				// Move to the index literal
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+					break
+				}
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+					break
+				}
+
+				num := index.child()
+				num.nt = NdLit
+
+				errs = append(errs, p.rparse(num, []int8{TkRBrack})...)
+
+				pk, err := p.peek()
+				if err != nil {
+					errs = append(errs, err)
+					break
+				}
+
+				body := index.child()
+				body.nt = NdBody
+
+				if pk.tokenType == TkAssign || pk.tokenType == TkOrAssign || pk.tokenType == TkAddAssign || pk.tokenType == TkAndAssign || pk.tokenType == TkMulAssign || pk.tokenType == TkAndNotAssign || pk.tokenType == TkQuoAssign || pk.tokenType == TkRemAssign || pk.tokenType == TkShlAssign || pk.tokenType == TkShrAssign || pk.tokenType == TkSubAssign || pk.tokenType == TkXorAssign {
+					errs = append(errs, p.parseAssign(body, []int8{TkWhiteSpace, TkSemicolon})...)
+				}
 			} else if tk.tokenType == TkWhiteSpace || tk.tokenType == TkSemicolon {
 				call := into.child()
 				call.nt = NdCall
@@ -1109,8 +1250,14 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 			inln.nt = NdInln
 			inln.gt = p.t
 
-		case TkInt, TkFloat, TkString:
+		case TkInt, TkFloat, TkString, TkNilKw, TkLParen:
 			errs = append(errs, p.parseExpr(into, until)...)
+
+		/*case TkNilKw:
+		lit := into.child()
+		lit.nt = NdLit
+		lit.gt = p.t
+		lit.sdata = "Nil"*/
 
 		case TkWhiteSpace, TkSemicolon:
 			break
