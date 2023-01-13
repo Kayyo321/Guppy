@@ -810,7 +810,13 @@ func (p *Parser) parseForStmt(into *Node, until []int8) []error {
 	forinit := forstmt.child()
 	forinit.nt = NdForInit
 
-	errs = append(errs, p.parseExpr(forinit, []int8{TkSemicolon})...)
+	errs = append(errs, p.rparse(forinit, []int8{TkSemicolon})...)
+
+	// Skip ';'
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
 
 	// For bool
 	forbool := forstmt.child()
@@ -818,11 +824,17 @@ func (p *Parser) parseForStmt(into *Node, until []int8) []error {
 
 	errs = append(errs, p.parseExpr(forbool, []int8{TkSemicolon})...)
 
+	// Skip ';'
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
 	// For inc
 	forinc := forstmt.child()
 	forinc.nt = NdForInc
 
-	errs = append(errs, p.parseExpr(forinc, []int8{TkLBrace})...)
+	errs = append(errs, p.rparse(forinc, []int8{TkLBrace})...)
 
 	body := forstmt.child()
 	body.nt = NdBody

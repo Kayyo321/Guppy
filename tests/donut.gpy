@@ -7,14 +7,14 @@ delay: float64, const = 16 * time | millisecond
 ascii: string, const = ".,-~:;=!*#$@"
 
 floatSet := func(arr: [float64], v: float64) {
-    l: int = size(arr)
+    l: int = len(arr)
     for i: int = 0; i < l; i++ {
         arr[i] = v
     }
 }
 
 byteSet := func(arr: [string], v: string) {
-    l: int = size(arr)
+    l: int = len(arr)
     for i: int = 0; i < l; i++ {
         arr[i] = v
     }

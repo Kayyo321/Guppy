@@ -1,7 +1,7 @@
 package io
 
-/** Return a string based on console input */
-scan := func(prompt: string): string {
+/** Scan a string */
+scans := func(prompt: string): string {
     inBuf: [255, byte] = nil
 
     /** Inline assembly x86: */
@@ -20,10 +20,28 @@ scan := func(prompt: string): string {
     return str
 }
 
+/** Scan a byte */
+scanb := func(prompt: string): byte {
+    b: byte
+
+    /** Inline assembly x86 */
+    <- "cmp dword[gs:0xC], 1" // Check if the system is 32-bit, or 64-bit
+    <- "jne .is64"
+    <- "in al, 0x60"
+    <- "jmp .done"
+    <- ".is64:"
+    <- "mov rax, 0x60"
+    <- "in al, dx"
+    <- ".done:"
+    <- "mov byte [rbp-1], al" // Put the read character into b
+
+    return b
+}
+
 /** Print a string */
 puts := func(s: string) {
     /** Inline assembly x86 */
-    <- "mov eax, [rbp+4]"     // get the address of the string from the parameter
+    <- "mov eax, dword[rbp+4]"     // get the address of the string from the parameter
     <- "mov ebx, 1"           // file descriptor for stdout
     <- "mov ecx, eax"         // address of the string
     <- "mov edx, 0"           // count the length of the string
@@ -123,7 +141,7 @@ printf := func(fmt: string, xyz: ...) {
     curBitShift: int = 8 // Skip format str
 
     /** Inline assembly x86 */
-    <- "mov rax, [rbp-4]
+    <- "mov rax, dword[rbp-4]
 
     for i: int = 0; i < len(fmt); i++ {
         c: byte = fmt[i]
@@ -137,7 +155,7 @@ printf := func(fmt: string, xyz: ...) {
                 d: int = 0
 
                 /** Inline assembly x86 */
-                <- "mov [rbp-8], [rbp+rax]
+                <- "mov dword[rbp-8], dword[rbp+rax]
 
                 puti(d)
             } else if c == 'f' {
@@ -145,7 +163,7 @@ printf := func(fmt: string, xyz: ...) {
                 f: float64 = 0.0
 
                 /** Inline assembly x86 */
-                <- "mov [rbp-12], [rbp+rax]
+                <- "mov qword[rbp-12], qword[rbp+rax]
 
                 putf(f)
             } else if c == 'c' {
@@ -153,7 +171,7 @@ printf := func(fmt: string, xyz: ...) {
                 b: byte = '_'
 
                 /** Inline assembly x86 */
-                <- "mov [rbp-5], [rbp+rax]
+                <- "mov byte [rbp-5], byte [rbp+rax]
 
                 putb(b)
             } else if c == 's' {
@@ -163,10 +181,10 @@ printf := func(fmt: string, xyz: ...) {
                 /** Inline assembly x86 */
                 <- "mov eax, rax"
                 <- ".loop:"
-                <- "cmp [rbp+rax], 0"
+                <- "cmp byte [rbp+rax], 0"
                 <- "je .exit"
                 <- "inc rax"
-                <- "mov [rbp-5], [rbp+rax]"
+                <- "mov byte [rbp-5], byte [rbp+rax]"
 
                 s += b
 
@@ -180,7 +198,7 @@ printf := func(fmt: string, xyz: ...) {
                 b: bool = false
 
                 /** Inline assembly x86 */
-                <- "mov [rbp-5], [rbp+rax]
+                <- "mov byte [rbp-5], byte [rbp+rax]
 
                 putbl(b)
             } else {

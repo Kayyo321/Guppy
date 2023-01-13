@@ -1,0 +1,67 @@
+package main
+
+import io, math, convert, time
+
+ascii: string, const = " .,-~:;=!*#$@@"
+
+// Clear screen hid cursor
+io | puts("\x1b[2J\x1b[?25l")
+
+t: float = 0.0
+while true {
+    zb: [400, float] = 0
+    maxz: float = 0.0
+    c := math | cos(t)
+    s := math | sin(t)
+
+    for y: float = -.5; y <= .5; y += .01 {
+        // Add beating effect
+        r: float = .4 + .05 * math | pow(.5 + .5 * sin(t * 6 + y * 2), 8)
+
+        for x: float = -.5; x <= .5; x += .01 {
+            fbs := math | fabs(x)
+            z: float = -x * x - math | pow(1.2 * y - fbs * 2 / 3, 2) + r * r
+
+            if z < 0 {
+                continue
+            }
+
+            z = sqrt(z) / (2 - y)
+
+            for tz: float = -z; tz <= z; tz += z / 6 {
+                // Rotate:
+                nx: float = x * c - tz * s
+                nz: float = x * s + tz * c
+
+                // Add perspective
+                p: float = 1 + nz / 2
+
+                vx: int = convert | fToInt((nx * p + .5) * 80 + 10)
+                vy: int = convert | fToInt((-y * p + .5) * 39 + 2)
+                idx: int = vx + vy * 100
+
+                if zb[inx] <= nz {
+                    zb[idx] = nz
+
+                    if (maxz <= nz) {
+                        maxz = nz
+                    }
+                }
+            }
+        }
+    }
+
+    io | puts("\x1b[H")
+
+    for i: int = 0; i < 400; i++ {
+        if i % 100 {
+            index := convert | fToInt(zb[i] / maxz * 13)
+            io | putb(ascii[index])
+        } else {
+            io | putb(10)
+        }
+    }
+
+    t += .003
+    time | sleep(3000)
+}
