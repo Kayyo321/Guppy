@@ -810,7 +810,7 @@ func (p *Parser) parseForStmt(into *Node, until []int8) []error {
 	forinit := forstmt.child()
 	forinit.nt = NdForInit
 
-	errs = append(errs, p.parseExpr(forinit, []int8{TkSemicolon})...)
+	errs = append(errs, p.rparse(forinit, []int8{TkSemicolon})...)
 
 	// For bool
 	forbool := forstmt.child()
@@ -822,7 +822,7 @@ func (p *Parser) parseForStmt(into *Node, until []int8) []error {
 	forinc := forstmt.child()
 	forinc.nt = NdForInc
 
-	errs = append(errs, p.parseExpr(forinc, []int8{TkLBrace})...)
+	errs = append(errs, p.rparse(forinc, []int8{TkLBrace})...)
 
 	body := forstmt.child()
 	body.nt = NdBody
@@ -1042,7 +1042,41 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 					errs = append(errs, err)
 				}
 			} else if tk.tokenType == TkLBrack { // [
-				// TODO: Parse indexing
+				index := into.child()
+				index.nt = NdIndex
+				index.sdata = "Index"
+
+				varname := index.child()
+				varname.gt = p.t
+				varname.nt = NdCall
+
+				// Move to the index literal.
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+					break
+				}
+				if err := p.eat(); err != nil {
+					errs = append(errs, err)
+					break
+				}
+
+				num := index.child()
+				num.nt = NdLit
+
+				errs = append(errs, p.rparse(num, []int8{TkRBrack})...)
+
+				pk, err := p.peek()
+				if err != nil {
+					errs = append(errs, err)
+					break
+				}
+
+				body := index.child()
+				body.nt = NdBody
+
+				if pk.tokenType == TkAssign || pk.tokenType == TkOrAssign || pk.tokenType == TkAddAssign || pk.tokenType == TkAndAssign || pk.tokenType == TkMulAssign || pk.tokenType == TkAndNotAssign || pk.tokenType == TkQuoAssign || pk.tokenType == TkRemAssign || pk.tokenType == TkShlAssign || pk.tokenType == TkShrAssign || pk.tokenType == TkSubAssign || pk.tokenType == TkXorAssign {
+					errs = append(errs, p.parseAssign(body, []int8{TkWhiteSpace, TkSemicolon})...)
+				}
 			} else if tk.tokenType == TkWhiteSpace || tk.tokenType == TkSemicolon {
 				call := into.child()
 				call.nt = NdCall
