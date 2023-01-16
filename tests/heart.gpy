@@ -36,8 +36,8 @@ while true {
                 // Add perspective
                 p: float = 1 + nz / 2
 
-                vx: int = convert | fToInt((nx * p + .5) * 80 + 10)
-                vy: int = convert | fToInt((-y * p + .5) * 39 + 2)
+                vx: int = convert | floatToInt((nx * p + .5) * 80 + 10)
+                vy: int = convert | floatToInt((-y * p + .5) * 39 + 2)
                 idx: int = vx + vy * 100
 
                 if zb[inx] <= nz {
@@ -55,7 +55,7 @@ while true {
 
     for i: int = 0; i < 400; i++ {
         if i % 100 {
-            index := convert | fToInt(zb[i] / maxz * 13)
+            index := convert | floatToInt(zb[i] / maxz * 13)
             io | putb(ascii[index])
         } else {
             io | putb(10)

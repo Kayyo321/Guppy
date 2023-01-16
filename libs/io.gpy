@@ -1,5 +1,7 @@
 package io
 
+import std
+
 /** Scan a string */
 scans := func(prompt: string): string {
     inBuf: [255, byte] = nil
@@ -9,7 +11,7 @@ scans := func(prompt: string): string {
     <- "mov ebx, 0"        // file descriptor: stdin
     <- "mov ecx, [rbp-255] // address of the buffer (inBuf)
     <- "mov edx, 255       // buffer size (255)
-    <- "int 0x80"          // call kernel for syscall
+    <- "syscall"          // call kernel for syscall
 
     str: string = ""
 
@@ -52,7 +54,7 @@ puts := func(s: string) {
     <- "jmp .count_loop"
     <- ".print_string:"
     <- "mov eax, 4"           // make the syscall for sys_write
-    <- "int 0x80"
+    <- "syscall"
 }
 
 /** Print an int */
@@ -124,7 +126,7 @@ putb := func(b: byte) {
     <- "mov ecx, dl"
     <- "mov edx, 1"
     <- "mov eax, 4"
-    <- "int 0x80"
+    <- "syscall"
 }
 
 /** Print a boolean */
@@ -136,77 +138,193 @@ putbl := func(b: bool) {
     }
 }
 
-/** Print a formatted string */
-printf := func(fmt: string, xyz: ...) {
-    curBitShift: int = 8 // Skip format str
+/** Printing... */
+print := func(xyz: ...) {
+    i := 0
+    x := xyz[i]
+    while true {
+        if x == 'i' {
+            i++
+            x = xyz[i]
+
+            puti(x)
+        } else if x == 'f' {
+            i++ 
+            x = xyz[i]
+
+            putf(x)
+        } else if x == 'b' {
+            i++ 
+            x = xyz[i]
+
+            putb(x)
+        } else if x == 's' {
+            i++ 
+            x = xyz[i]
+
+            puts(x)
+        } else if x == 'l' {
+            i++
+            x = xyz[i]
+
+            putbl(x)
+        } else if x == 'v' {
+            i++
+            x = xyz[i]
+
+            puts("[ ")
+
+            while x[i] != '\0' {
+                puti(x)
+                putb(' ')
+
+                i++
+                x = xyz[i]
+            }
+
+            puts(" ]")
+        } else if x == 'c' {
+            i++
+            x = xyz[i]
+
+            puts("[ ")
+
+            while x[i] != '\0' {
+                putf(x)
+                putb(' ')
+
+                i++
+                x = xyz[i]
+            }
+
+            puts(" ]")
+        } else if x == 'x' {
+            i++
+            x = xyz[i]
+
+            puts("[ ")
+
+            while x[i] != '\0' {
+                putb(x)
+                putb(' ')
+
+                i++
+                x = xyz[i]
+            }
+
+            puts(" ]")
+        } else if x == 'z' {
+            i++
+            x = xyz[i]
+
+            puts("[ ")
+
+            while x[i] != '\0' {
+                putb('"')
+                puts(x)
+                putb('"')
+                putb(' ')
+
+                i++
+                x = xyz[i]
+            }
+
+            puts(" ]")
+        } else if x == 'n' {
+            i++
+            x = xyz[i]
+
+            puts("[ ")
+
+            while x[i] != '\0' {
+                putbl(x)
+                putb(' ')
+
+                i++
+                x = xyz[i]
+            }
+
+            puts(" ]")
+        } else {
+            break
+        }
+
+        i++
+        x = xyz[i]
+    }
+}
+
+println := func(xyz: ...) {
+    print(xyz)
+    putb('\n')
+}
+
+printerr := func(msg: string) {
+    s := msg
 
     /** Inline assembly x86 */
-    <- "mov rax, dword[rbp-4]
+    <- "mov edx, 1"
+    <- "mov ebx, 2"
+    <- "mov eax, 4"
+    <- "mov ecx, [rbp-1]"
+    <- ".next:"
+    <- "movzx al, byte [ecx]"
+    <- "inc ecx"
+    <- "cmp al, 0"
+    <- "je .done"
+    <- "syscall"
+    <- "jmp .next"
+    <- ".done:"
+}
 
-    for i: int = 0; i < len(fmt); i++ {
-        c: byte = fmt[i]
+/** File interactions */
+readFile := func(filename: string): [bytes] {
+    desc: [4, byte]
+    buffer: [4096, byte]
 
-        if c == '%' {
-            i++
-            c = fmt[i]
+    /** Inline assembly x86 */
+    /** Open the file */
+    <- "mov eax, 5"
+    <- "mov ebc, rbp+1"
+    <- "mov ecx, 0"
+    <- "syscall"
 
-            if c == 'd' {
-                curBitShift += 4
-                d: int = 0
+    /** Store the descriptor */
+    <- "mov [rbp-4], eax"
 
-                /** Inline assembly x86 */
-                <- "mov dword[rbp-8], dword[rbp+rax]
+    /** Read from file */
+    <- "mov eax, 3"
+    <- "mov ebx, [rbp-4]"
+    <- "mov ecx, [rbp-4100]"
+    <- "mov edx, 4096"
+    <- "syscall"
 
-                puti(d)
-            } else if c == 'f' {
-                curBitShift += 8
-                f: float64 = 0.0
+    /** Close the file */
+    <- "mov eax, 6"
+    <- "mov ebx, [rbp-4]"
+    <- "syscall"
 
-                /** Inline assembly x86 */
-                <- "mov qword[rbp-12], qword[rbp+rax]
+    return buffer
+}
 
-                putf(f)
-            } else if c == 'c' {
-                curBitShift++
-                b: byte = '_'
+writeToFile := func(filename: string, bytes [byte]) {
+    fnlen := len(filename)
+    bylen := len(bytes)
+    fd: [4, byte]
 
-                /** Inline assembly x86 */
-                <- "mov byte [rbp-5], byte [rbp+rax]
-
-                putb(b)
-            } else if c == 's' {
-                b: byte = '_'
-                s: string = ""
-
-                /** Inline assembly x86 */
-                <- "mov eax, rax"
-                <- ".loop:"
-                <- "cmp byte [rbp+rax], 0"
-                <- "je .exit"
-                <- "inc rax"
-                <- "mov byte [rbp-5], byte [rbp+rax]"
-
-                s += b
-
-                /** Inline assembly x86 */
-                <- "jmp .loop"
-                <- ".exit:"
-
-                puts(s)
-            } else if c == 'b' {
-                curBitShift++
-                b: bool = false
-
-                /** Inline assembly x86 */
-                <- "mov byte [rbp-5], byte [rbp+rax]
-
-                putbl(b)
-            } else {
-                puts("%")
-                putb(c)
-            }
-        } else {
-            putb(c)
-        }
-    }
+    /** Inline assembly x86 */
+    <- "mov rsi, 0102o" // O_CREAT
+    <- "mov rdx, 0666o" // umode_t
+    <- "mov rax, 2"
+    <- "syscall"
+    <- "mov [rbp-12], rax"
+    <- "mov rdx, [rbp-8]"   // message length
+    <- "mov eax, [rbp-4]"   
+    <- "mov rsi, [rbp+eax]" // message to write
+    <- "mov rdi, [rbp-12]"  // file descriptor
+    <- "mov rax, 1"         // system call number (sys_write)
+    <- "syscall"            // call kernel
+    <- "mov rdi, [rbp-12]"
+    <- "mov rax, 3"         // sys_close
+    <- "syscall"
 }

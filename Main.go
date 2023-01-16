@@ -26,7 +26,7 @@ func usage() {
 	os.Exit(0)
 }
 
-func build(files []string) {
+func build(files []string, flags map[string]string) string {
 	// var obj []string
 	for _, filename := range files {
 		bytes, err := os.ReadFile(filename)
@@ -66,35 +66,33 @@ func build(files []string) {
 	}
 
 	// After compilation, link all objects.
+	// Return filepath to exe.
+
+	return ""
 }
 
-func run(files []string) {
-
+func run(files []string, flags map[string]string) {
+	o := build(files, flags)
+	fmt.Println(o)
+	// Run the exe.
 }
 
-func getFlags() map[string]string {
+func parseArgs() (map[string]string, []string) {
 	flags := make(map[string]string)
+	var files []string
 
 	for i, arg := range os.Args {
 		if arg[0] == '-' {
 			flags[arg] = os.Args[i+1]
+		} else {
+			fileExt := filepath.Ext(arg)
+			if fileExt == ".gpy" || fileExt == ".guppy" {
+				files = append(files, arg)
+			}
 		}
 	}
 
-	return flags
-}
-
-func getFiles() []string {
-	var files []string
-
-	for _, arg := range os.Args {
-		fileExt := filepath.Ext(arg)
-		if fileExt == ".gpy" || fileExt == ".guppy" {
-			files = append(files, arg)
-		}
-	}
-
-	return files
+	return flags, files
 }
 
 func main() {
@@ -103,14 +101,17 @@ func main() {
 	}
 
 	// TODO: impliment flags.
-	//flags := getFlags()
-	files := getFiles()
+	flags, files := parseArgs()
+	fmt.Println(flags)
 
 	switch os.Args[1] {
 	case "build":
-		build(files)
+		build(files, flags)
 
 	case "run":
+		run(files, flags)
+
+	case "edit":
 		break
 
 	default:

@@ -10,6 +10,7 @@ const (
 	NdEllipsis      = "Ellipsis"
 	NdFunctionDef   = "Function Def"
 	NdFunctionParam = "Function Param"
+	NdFunctionRec   = "Function Reciever"
 	NdBody          = "Body || Value"
 	NdFunctionCall  = "Function Call"
 	NdStructDef     = "Struct Def"
@@ -37,6 +38,11 @@ const (
 	NdLit           = "Lit"
 	NdInln          = "Inline Asm"
 	NdIndex         = "Index"
+	NdEnum          = "Enum"
+	NdEnumCall      = "Enum Call"
+	NdRangeDef      = "Range Def"
+	NdDefer         = "Defer"
+	NdClean         = "Clean"
 )
 
 type Node struct {
@@ -308,6 +314,11 @@ func (p *Parser) parseVarDecl(into *Node, until []int8, names []Token) []error {
 			el.nt = NdEllipsis
 			el.gt = p.t
 			el.sdata = "..."
+		} else if p.t.tokenType == TkRangeKw {
+			rng := vardcl.child()
+			rng.nt = NdRangeDef
+			rng.gt = p.t
+			rng.sdata = "rng"
 		} else {
 			tp := vardcl.child()
 			tp.nt = NdStructDef
@@ -323,7 +334,7 @@ func (p *Parser) parseVarDecl(into *Node, until []int8, names []Token) []error {
 	}
 
 	if p.t.tokenType == TkComma {
-		if err := p.assert([]int8{TkConstKw}); err != nil {
+		if err := p.assert([]int8{TkConstKw, TkStaticKw}); err != nil {
 			errs = append(errs, err)
 			return errs
 		}
@@ -331,9 +342,9 @@ func (p *Parser) parseVarDecl(into *Node, until []int8, names []Token) []error {
 		cnst := vardcl.child()
 		cnst.gt = p.t
 		cnst.nt = NdSect
-		cnst.sdata = "const"
+		cnst.sdata = p.t.sdata
 
-		// Skip 'const'
+		// Skip 'const' || 'static'
 		if err := p.eat(); err != nil {
 			errs = append(errs, err)
 			return errs
@@ -432,7 +443,54 @@ func (p *Parser) parseFuncLit(into *Node, until []int8) []error {
 
 		fdef.bytes = p.typeToBSize()
 
-		// Skip type, go to '{'
+		// Skip type
+		if err := p.eat(); err != nil {
+			errs = append(errs, err)
+			return errs
+		}
+
+		if p.t.tokenType == TkShr {
+			// Skip '>>'
+			if err := p.eat(); err != nil {
+				errs = append(errs, err)
+				return errs
+			}
+
+			if p.t.tokenType != TkIdent {
+				errs = append(errs, errors.New("Reciever name was not an identifier: "+p.t.toString()))
+				return errs
+			}
+
+			rec := fdef.child()
+			rec.nt = NdFunctionRec
+			rec.gt = p.t
+			rec.sdata = p.t.sdata
+
+			if err := p.assert([]int8{TkLBrace}); err != nil {
+				errs = append(errs, err)
+				return errs
+			}
+		} else if p.t.tokenType != TkLBrace {
+			errs = append(errs, errors.New("Function had no body; instead found:"+p.t.toString()))
+			return errs
+		}
+	} else if p.t.tokenType == TkShr {
+		// Skip '>>'
+		if err := p.eat(); err != nil {
+			errs = append(errs, err)
+			return errs
+		}
+
+		if p.t.tokenType != TkIdent {
+			errs = append(errs, errors.New("Reciever name was not an identifier: "+p.t.toString()))
+			return errs
+		}
+
+		rec := fdef.child()
+		rec.nt = NdFunctionRec
+		rec.gt = p.t
+		rec.sdata = p.t.sdata
+
 		if err := p.assert([]int8{TkLBrace}); err != nil {
 			errs = append(errs, err)
 			return errs
@@ -481,6 +539,26 @@ func (p *Parser) parseExpr(into *Node, until []int8) []error {
 			lit.nt = NdLit
 			lit.gt = p.t
 			queue = append(queue, lit)
+		} else if p.t.tokenType == TkEnumKw {
+			enum := Node{}
+			enum.nt = NdEnumCall
+			enum.gt = p.t
+
+			if err := p.assert([]int8{TkPeriod}); err != nil {
+				errs = append(errs, err)
+				return errs
+			}
+
+			if err := p.assert([]int8{TkIdent}); err != nil {
+				errs = append(errs, err)
+				return errs
+			}
+
+			call := enum.child()
+			call.nt = NdIdent
+			call.gt = p.t
+
+			queue = append(queue, enum)
 		} else if p.t.tokenType == TkIdent {
 			tk, err := p.peek()
 			if err != nil {
@@ -1000,6 +1078,86 @@ func (p *Parser) parseAssign(into *Node, until []int8) []error {
 	return errs
 }
 
+func (p *Parser) parseEnumLit(into *Node, until []int8) []error {
+	var errs []error
+
+	enum := into.child()
+	enum.gt = p.t
+	enum.nt = NdEnum
+
+	if err := p.assert([]int8{TkLBrace}); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	for p.t.tokenType != TkRBrace {
+		switch p.t.tokenType {
+		case TkIdent:
+			lit := enum.child()
+			lit.gt = p.t
+			lit.sdata = p.t.sdata
+			lit.nt = NdIdent
+
+		case TkComma, TkWhiteSpace:
+			break
+
+		default:
+			errs = append(errs, errors.New("Did not expect to find: "+p.t.toString()+" in enum literal."))
+		}
+
+		if err := p.eat(); err != nil {
+			errs = append(errs, err)
+			return errs
+		}
+	}
+
+	return errs
+}
+
+func (p *Parser) parseDeferStmt(into *Node, until []int8) []error {
+	var errs []error
+
+	dfr := into.child()
+	dfr.nt = NdDefer
+	dfr.gt = p.t
+
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	body := dfr.child()
+	body.nt = NdBody
+
+	_until := until
+	_until = append(_until, []int8{TkWhiteSpace, TkSemicolon}...)
+	errs = append(errs, p.rparse(body, _until)...)
+
+	return errs
+}
+
+func (p *Parser) parseCleanStmt(into *Node, until []int8) []error {
+	var errs []error
+
+	cln := into.child()
+	cln.nt = NdClean
+	cln.gt = p.t
+
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	body := cln.child()
+	body.nt = NdBody
+
+	_until := until
+	_until = append(_until, []int8{TkWhiteSpace, TkSemicolon}...)
+	errs = append(errs, p.rparse(body, _until)...)
+
+	return errs
+}
+
 func (p *Parser) rparse(into *Node, until []int8) []error {
 	var errs []error
 
@@ -1181,8 +1339,25 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 				body := index.child()
 				body.nt = NdBody
 
+				for _, u := range until {
+					if u == tk.tokenType || tk.tokenType == TkEof {
+						call := into.child()
+						call.nt = NdCall
+						call.gt = p.t
+						call.sdata = "VarCall"
+						if err := p.eat(); err != nil {
+							errs = append(errs, err)
+						}
+						return errs
+					}
+				}
+
 				if pk.tokenType == TkAssign || pk.tokenType == TkOrAssign || pk.tokenType == TkAddAssign || pk.tokenType == TkAndAssign || pk.tokenType == TkMulAssign || pk.tokenType == TkAndNotAssign || pk.tokenType == TkQuoAssign || pk.tokenType == TkRemAssign || pk.tokenType == TkShlAssign || pk.tokenType == TkShrAssign || pk.tokenType == TkSubAssign || pk.tokenType == TkXorAssign {
 					errs = append(errs, p.parseAssign(body, []int8{TkWhiteSpace, TkSemicolon})...)
+				} else if pk.tokenType != TkWhiteSpace && pk.tokenType != TkSemicolon {
+					_until := until
+					_until = append(_until, []int8{TkWhiteSpace, TkSemicolon}...)
+					errs = append(errs, p.parseExpr(body, _until)...)
 				}
 			} else if tk.tokenType == TkWhiteSpace || tk.tokenType == TkSemicolon {
 				call := into.child()
@@ -1211,6 +1386,41 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 
 		case TkWhileKw:
 			errs = append(errs, p.parseWhileStmt(into, until)...)
+
+		case TkDeferKw:
+			errs = append(errs, p.parseDeferStmt(into, until)...)
+
+		case TkCleanKw:
+			errs = append(errs, p.parseCleanStmt(into, until)...)
+
+		case TkEnumKw:
+			tk, err := p.peek()
+			if err != nil {
+				errs = append(errs, err)
+				return errs
+			}
+
+			if tk.tokenType == TkLBrace {
+				errs = append(errs, p.parseEnumLit(into, until)...)
+			} else if tk.tokenType == TkPeriod {
+				enum := into.child()
+				enum.nt = NdEnumCall
+				enum.gt = p.t
+
+				p.eat() // cannot fail, we've already peeked.
+
+				if err := p.assert([]int8{TkIdent}); err != nil {
+					errs = append(errs, err)
+					return errs
+				}
+
+				call := enum.child()
+				call.nt = NdIdent
+				call.gt = p.t
+
+			} else {
+				errs = append(errs, errors.New("Did not expect to find: "+p.t.toString()+" after enum declaration."))
+			}
 
 		case TkReturnKw:
 			ret := into.child()
@@ -1252,12 +1462,6 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 
 		case TkInt, TkFloat, TkString, TkNilKw, TkLParen:
 			errs = append(errs, p.parseExpr(into, until)...)
-
-		/*case TkNilKw:
-		lit := into.child()
-		lit.nt = NdLit
-		lit.gt = p.t
-		lit.sdata = "Nil"*/
 
 		case TkWhiteSpace, TkSemicolon:
 			break

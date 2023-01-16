@@ -7,8 +7,8 @@ vector := struct {
     y: float
     z: float
     
-    print := func() {
-        io | printf("(%d, %d, %d)", x, y, z)
+    printvec := func() >> v {
+        io | println("(", v.x, ", ", v.y, ", ", v.z, ")")
     }
 }
 
@@ -16,4 +16,4 @@ myV: vector
 myV.x = 1.1
 myV.y = 2.2
 myV.z = 3.3
-myV.print()
+myV.printvec()

@@ -1,0 +1,219 @@
+package convert
+
+import std
+
+/** String to... */
+strToInt := func(str: string): int {
+    result := 0
+    sign := 1
+    s: byte = str[0]
+    
+    if s == '-' {
+        sign = -1
+        i++
+        s = str[i]
+    }
+
+    for i := 0; s != '\0'; i++ {
+        s = str[i]
+        if s < '0' || s > '9' {
+            break
+        }
+
+        result *= 10 + (s - '0')
+    }
+
+    return result * sign
+}
+
+strToFloat := func(str: string): float {
+    result: float = 0
+    sign: float = 1
+    i := 0
+    s := str[i]
+    
+    if s == '-' {
+        sign = -1
+        i++
+        s = str[i]
+    }
+
+    for ; s != '\0'; i++ {
+        s = str[i]
+
+        if s == '.' {
+            break
+        }
+        if s < '0' || s > '9' {
+            break
+        }
+        result *= 10 + (s - '0')
+    }
+
+    if s == '.' {
+        i++
+        decimal: float = 0
+        dm := 1
+        for ; s != '\0'; i++ {
+            s = str[i]
+            if s < '0' || s > '9' {
+                break
+            }
+
+            decimal *= 10 + (s - '0')
+            dm *= 10
+        }
+
+        result += decimal / dm
+    }
+    return result * sign
+}
+
+strToBytes := func(s: string): [byte] {
+    bs: [4096, byte]
+
+    for i := 0; i < len(s); i++ {
+        bs[i] = s[i]
+    }
+
+    return bs
+}
+
+reverseStr := func(s: string): string {
+    str := s
+    start: int = 0
+    end: int = len(str)-1
+    tmp: string = ""
+
+    while start < end {
+        tmp = str[start]
+        str[start] = str[end]
+        str[end] = tmp
+        start++
+        end--
+    }
+    return str
+}
+
+/** Int to... */
+intToString := func(n: int): string {
+    result: string
+    sign := n
+    sz := 0
+    if sign < 0 {
+        n = -n
+    }
+    while n {
+        result += n % 10 + '0'
+        n /= 10
+        sz++
+    }
+    if sign < 0 {
+        result += '-'
+    }
+    result = reverseStr(result)
+    return result
+}
+
+intToFloat := func(n: int): float {
+    f: float = n + 0.0
+    return f
+}
+
+/** Float to... */
+floatToString := func(f: float): string {
+    i, sign, temp: int
+    intpart: int
+    fraction: float
+    str: string
+
+    if num < 0 {
+        sign = -1
+        num = -num
+    } else {
+        sign = 1
+    }
+
+    intpart = floatToInt(num)
+    fraction = num - intToFloat(intpart)
+    i = 0
+
+    if sign == -1 {
+        str += '-'
+    }
+
+    temp = intpart
+
+    while temp {
+        str += (temp % 10) + '0'
+        temp /= 10
+    }
+
+    if i == 0 {
+        str += '0'
+    }
+
+    str += '.'
+
+    while afterpoint-- {
+        fraction *= 10
+        temp = floatToInt(fraction)
+        str += (temp % 10) + '0'
+    }
+
+    return str
+}
+
+floatToInt := func(f: float): int {
+    decimal := f % 1
+    whole: int = f - decimal
+    return whole
+}
+
+/** Byte to... */
+
+byteToString := func(b: byte): string {
+    s: string = ""
+    s += b
+    return s
+}
+
+byteToInt := func(b: byte): int {
+    if b > '0' && b < '9' {
+        return b - '0'
+    }
+
+    return -1
+}
+
+byteToFloat := func(b: byte): float {
+    if b > '0' && b < '9' {
+        r: float = b - '0'
+        return r
+    }
+
+    return -1.0
+}
+
+byteToBool := func(b: byte): bool {
+    if b == '1' || b == ('1' - '0') {
+        // If the byte is the char 1, or the int 1.
+        return true
+    }
+
+    return false
+}
+
+bytesToString := func(bs: [byte]): string {
+    s: string
+
+    i := 0
+    x := bs[i]
+
+    while x != '\0' {
+        s += byteToString(x)
+
+        i++
+        x = bs[i]
+    }
+}

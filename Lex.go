@@ -72,60 +72,49 @@ const (
 	TkColon        int8 = 55 // :
 
 	// TkBreakKw Keywords
-	TkBreakKw       int8 = 56
-	TkCaseKw        int8 = 57
-	TkChanKw        int8 = 58
-	TkConstKw       int8 = 59
-	TkContinueKw    int8 = 60
-	TkDefaultKw     int8 = 61
-	TkDeferKw       int8 = 62
-	TkElseKw        int8 = 63
-	TkFallthroughKw int8 = 64
-	TkForKw         int8 = 65
-	TkFuncKw        int8 = 66
-	TkGoKw          int8 = 67
-	TkGotoKw        int8 = 68
-	TkIfKw          int8 = 69
-	TkImportKw      int8 = 70
-	TkInterfaceKw   int8 = 71
-	TkMapKw         int8 = 72
-	TkPackageKw     int8 = 73
-	TkRangeKw       int8 = 74
-	TkReturnKw      int8 = 75
-	TkSelectKw      int8 = 76
-	TkStructKw      int8 = 77
-	TkSwitchKw      int8 = 78
-	TkTypeKw        int8 = 79
-	TkVarKw         int8 = 80
-	TkCleanKw       int8 = 81
-	TkWhiteSpace    int8 = 82
-	TkNewKw         int8 = 83
-	TkIntKw         int8 = 84
-	TkInt8Kw        int8 = 85
-	TkInt16Kw       int8 = 86
-	TkInt32Kw       int8 = 87
-	TkInt64Kw       int8 = 88
-	TkUIntKw        int8 = 89
-	TkUInt8Kw       int8 = 90
-	TkUInt16Kw      int8 = 91
-	TkUInt32Kw      int8 = 92
-	TKUint64Kw      int8 = 93
-	TkFloatKw       int8 = 94
-	TkFloat32Kw     int8 = 95
-	TkFloat64Kw     int8 = 96
-	TkStringKw      int8 = 97
-	TkEnumKw        int8 = 98
-	TkNilKw         int8 = 99
-	TkAnyKw         int8 = 100
+	TkBreakKw    int8 = 56
+	TkCaseKw     int8 = 57
+	TkConstKw    int8 = 58
+	TkStaticKw   int8 = 59
+	TkContinueKw int8 = 60
+	TkDefaultKw  int8 = 61
+	TkDeferKw    int8 = 62
+	TkElseKw     int8 = 63
+	TkForKw      int8 = 64
+	TkFuncKw     int8 = 65
+	TkIfKw       int8 = 66
+	TkImportKw   int8 = 67
+	TkPackageKw  int8 = 68
+	TkRangeKw    int8 = 69
+	TkReturnKw   int8 = 70
+	TkStructKw   int8 = 71
+	TkCleanKw    int8 = 72
+	TkWhiteSpace int8 = 73
+	TkIntKw      int8 = 74
+	TkInt8Kw     int8 = 75
+	TkInt16Kw    int8 = 76
+	TkInt32Kw    int8 = 77
+	TkInt64Kw    int8 = 78
+	TkUIntKw     int8 = 79
+	TkUInt8Kw    int8 = 80
+	TkUInt16Kw   int8 = 81
+	TkUInt32Kw   int8 = 82
+	TKUint64Kw   int8 = 83
+	TkFloatKw    int8 = 84
+	TkFloat32Kw  int8 = 85
+	TkFloat64Kw  int8 = 86
+	TkStringKw   int8 = 87
+	TkEnumKw     int8 = 88
+	TkNilKw      int8 = 89
 
 	// TkAbreviation Misc
-	TkAbreviation int8 = 101 // /** This is an abreviation */
-	TkVersionNum  int8 = 102
-	TkSqrInc      int8 = 103
+	TkAbreviation int8 = 90 // /** This is an abreviation */
+	TkVersionNum  int8 = 91
+	TkSqrInc      int8 = 92
 
-	TkByteKw  int8 = 104
-	TkBoolKw  int8 = 105
-	TkWhileKw int8 = 106
+	TkByteKw  int8 = 93
+	TkBoolKw  int8 = 94
+	TkWhileKw int8 = 95
 )
 
 var tokenTypeStrings []string = []string{
@@ -187,32 +176,22 @@ var tokenTypeStrings []string = []string{
 	"__tk_Colon",
 	"break",
 	"case",
-	"chan",
 	"const",
+	"static",
 	"continue",
 	"default",
 	"defer",
 	"else",
-	"fallthrough",
 	"for",
 	"func",
-	"go",
-	"goto",
 	"if",
 	"import",
-	"interface",
-	"map",
 	"package",
 	"range",
 	"return",
-	"select",
 	"struct",
-	"switch",
-	"type",
-	"var",
 	"clean",
 	"__tk_WhiteSpace",
-	"new",
 	"int",
 	"int8",
 	"int16",
@@ -229,7 +208,6 @@ var tokenTypeStrings []string = []string{
 	"string",
 	"enum",
 	"nil",
-	"any",
 	"__tk_Abreviation",
 	"__tk_Version_Number",
 	"__tk_Square_Increment",

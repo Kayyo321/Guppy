@@ -1,0 +1,185 @@
+package time
+
+import convert
+
+nanosecond:  int, const = 1
+microsecond: int, const = 1000 * nanosecond
+millisecond: int, const = 1000 * microsecond
+second:      int, const = 1000 * millisecond
+minute:      int, const = 60   * second
+hour:        int, const = 60   * minute
+day:         int, const = 24   * hour
+week:        int, const = 7    * day
+month:       int, const = 30   * week // Average
+year:        int, const = 12   * month
+
+dt := struct {
+    mon:   int
+    wda:   int
+    day:   int
+    yda:   int
+    mda:   int
+    yea:   int
+    hr:    int
+    mn:    int
+    sn:    int
+    am:    bool
+
+    toString := func(): string >> d {
+        s: string
+
+        s += convert | intToString(d.mon + 1)
+        s += '/'
+        s += convert | intToString(d.mda)
+        s += '/'
+        s += convert | intToString(d.yea + 1900)
+        s += " -- "
+
+        if d.am {
+            s += convert | intToString(d.hr)
+        } else {
+            s += convert | intToString(d.hr - 12)
+        }
+
+        s += ':'
+        s += convert | intToString(d.mn)
+        s += ':'
+        s += convert | intToString(d.sn)
+        s += ' '
+        
+        if d.am {
+            s += "AM"
+        } else {
+            s += "PM"
+        }
+
+        return s
+    }
+}
+
+nowLit := func(): int {
+    x: int
+
+    /** Inline assembly x86 */
+    <- "mov eax, 0x0"     // syscall num for time
+    <- "xor ebx, ebx"     // argv[0], not used
+    <- "syscall"         // call kernel
+    <- "mov [rbp-4], eax" // mov into x
+
+    return x
+}
+
+/** Now literal to date */
+nlToDt := func(nl: int): dt {
+    days, rem, y: int
+    result: dt
+
+    days = nl / 86400;
+    rem = nl % 86400;
+
+    result.hr = rem / 3600;
+    rem %= 3600;
+    result.mn = rem / 60;
+    result.sn = rem % 60;
+
+    /** January 1, 1970 was a Thursday. */
+    result.wda = (4 + days) % 7;
+    if result.wda < 0 {
+        result.wda += 7;
+    }
+
+    y = 1970;
+
+    while days < 0 || days >= daysInYr(y) {
+        yg := y + days / 365 - (days % 365 < 0)
+
+        ly := 0
+
+        for i := 1970; i < yg; i++ {
+            _y := daysInYr(i)
+            if _y == 366 {
+                ly++
+            }
+        }
+
+        days -= ((yg - y) * 365 + ly)
+
+        y = yg
+    }
+
+    result.yea = y - 1900
+    result.yda = days
+    result.mon = 0
+
+    dim: int 
+
+    while days >= (dim = 32 + (result.mon == 365 - daysInYr(y))) {
+        days -= dim
+        result.mon++
+    }
+
+    result.mda = days + 1
+
+    if result.hr > 12 {
+        result.am = false
+    } else {
+        result.am = true
+    }
+
+    return result
+}
+
+daysInYr := func(yr: int): int {
+    r: int
+
+    if yr % 4 != 0 {          // norm yr
+        r = 365 
+    } else if yr % 100 != 0 { // leap yr
+        r = 366 
+    } else if yr % 400 != 0 { // norm yr
+        r = 365 
+    } else {                  // leap yr
+        r = 366
+    }
+
+    return r
+}
+
+/** Auto convert to human readable fmt */
+now := func(): dt {
+    nl := nowLit()
+    r := nlToDt(nl)
+    return r
+}
+
+/** Sleep for nanoseconds */
+sleep := func(ns: int) {
+    x: float 
+
+    /** Inline assembly x86 */
+    <- "rdtsc"            // Get the current timestamp
+    <- "mov [rbp-8], rax
+    <- "mov rax, [rbp+4]" // move nanoseconds into rax
+    <- "add rax, [rbp-8] 
+    <- ".wait:"
+    <- "rdtsc"
+    <- "cmp rax, rdx"
+    <- "jb .wait"         // Loop until we're at end-time.
+}
+
+/** Sleep for seconds */
+sleepForSeconds := func(sn: int) {
+    // Convert seconds to nanoseconds
+    ns: float = sn * 1000000000 // Float instead of int because of 8 bytes / long difference
+    x: float
+    
+    /** Inline assembly x86 */
+    <- "rdtsc"             // Get the current timestamp
+    <- "mov [rbp-16], rax
+    <- "mov rax, [rbp-8]"
+    <- "add rax, [rbp-16]" // move nanoseconds into rax
+    <- ".wait:"
+    <- "rdtsc"
+    <- "cmp rax, rdx"
+    <- "jb .wait"          // Loop until we're at end-time
+}
