@@ -11,13 +11,17 @@ You can download the Guppy source code and build it using the
 <a href="https://go.dev">Go Compiler</a>.
 
 :warning: Documentation may not be there if you happen to download between an update, or bux fixes. :warning:
+
+:warning: You will also have to add this to your Environment Variables :warning:
 </div>  
 
 ## Option 2
 <div align="center">
 You can download the latest working build from the <a href"https://github.com/Kayyo321/Guppy/releases">Releases</a> section.
 
-:warning: You will still have to build this for your system, make sure you have the <a href="https://go.dev">Go Compiler</a> installed.
+:warning: You will still have to build this for your system, make sure you have the <a href="https://go.dev">Go Compiler</a> installed. :warning:
+
+:warning: You will also have to add this to your Environment Variables :warning:
 </div>
 
 ## Option 3
@@ -52,3 +56,16 @@ $ ./myProg
 
 If when you run the file you get a simple "Hello, World!" program, then your build of Guppy is installed correctly!
 If not, try reinstalling your build, or using another means of installation (i.e. building, or using the installer).
+
+# Features
+
+Guppy has a bunch of features, which include (but are not limited to)...
+
+* Type inferencing
+* Structures
+* Enums
+* Bindings for the C Standard Library
+
+And more to come!
+
+
