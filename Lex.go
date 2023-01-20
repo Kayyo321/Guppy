@@ -115,6 +115,8 @@ const (
 	TkByteKw  int8 = 93
 	TkBoolKw  int8 = 94
 	TkWhileKw int8 = 95
+	TkCLinkKw int8 = 96
+	TkPtrKw   int8 = 97
 )
 
 var tokenTypeStrings []string = []string{
@@ -214,6 +216,8 @@ var tokenTypeStrings []string = []string{
 	"byte",
 	"bool",
 	"while",
+	"_CLink",
+	"ptr",
 }
 
 type Token struct {

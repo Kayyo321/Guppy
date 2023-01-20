@@ -1,117 +1,8 @@
 package std
 
-/** Standard library for Guppy */
-
-/** Param map */
-paramMap := func(ty: string): byte {
-    b: byte
-
-    if ty == "int" { 
-        b = 'i' 
-    } else if ty == "float" {
-        b = 'f'
-    } else if ty == "byte" {
-        b = 'b'
-    } else if ty == "string" {
-        b = 's'
-    } else if ty == "bool" {
-        b = 'l'
-    } else if ty == "[int]" {
-        b = 'v'
-    } else if ty == "[float]" {
-        b = 'c'
-    } else if ty == "[byte]" {
-        b = 'x'
-    } else if ty == "[string]" {
-        b = 'z'
-    } else if ty == "[bool]" {
-        b = 'n'
-    } else {
-        b = '_'
-    }
-
-    return b
-}
-
-/** Untyped */
-true:  bool, const = 0 == 0 // Untyped bool: true
-false: bool, const = 0 != 0 // Untyped bool: false
-iota:  int,  const = 0      // Untyped int:  0
-
-/** Allocate && Deallocating memory */
-malloc := func(xyz: ...): int {
-    xyz0 := xyz[0]
-    if xyz0 != paramMap("int") {
-        // First param should be the size of bytes
-        return -1
-    }
-
-    bytes := xyz[1]
-
-    /** Inline assembly x86 */
-    <- "mov eax, 45" // Call sbrk to increase the heap size
-    <- "syscall"
-    <- "cmp eax, -1"
-    <- "jne .alloc"
-
-    /** If program gets here, malloc has failed */
-    return -1
-
-    /** malloc worked */
-    ptr: int // Int because of 4 bytes
-
-    <- ".alloc:"
-    <- "mov [rbp-9], eax" // put the address into ptr
-    
-    xyz[3] = ptr
-
-    return 0
-
-    // Memory alloc failed:
-    return -1
-}
-
-free := func(xyz: ...): int {
-    ptr := xyz[1]
-
-    /** Inline assembly x86 */
-    <- "mov ebx, [rbp-4]"
-    <- "neg ebx" 
-    <- "mov eax, 45"
-    <- "syscall"
-    <- "cmp eax, -1"
-    <- "jne .done"
-    
-    return -1
-
-    <- ".done:"
-    return 0
-}
-
-/** Length */
-len := func(xyz: ...): int {
-    sz: int
-    xyz0 := xyz[0]
-    
-    if xyz0 == paramMap("int") || xyz0 == paramMap("float") || xyz0 == paramMap("byte") {
-        // single var
-        return 1
-    } else {
-        s := xyz[1]
-        i := 0
-
-        sai := s[i]
-
-        while sai != '\0' {
-            i++
-            sai = s[i]
-        }
-        
-        return i
-    }
-
-    return -1
-}
+/** Link from stdio.h */
+_CLink <- exit
+_CLink <- perror
 
 /** Error handling */
 
@@ -140,43 +31,39 @@ enum {
     _NoSuchDirectory    // 20
 }
 
-stdError := struct {
+_StdError := struct {
     msg: string
     code: int
 }
 
-newError := func(_msg: string, _code: int): stdError {
-    r: stdError
+newError := func(_msg: string, _code: int): _StdError {
+    r: _StdError
     r.msg = _msg
     r.code = _code
     return r
 }
 
-panic := func(err: stdError) {
-    str := stdError.msg
+printStderr := func(_msg: string) {
+    /** Inline asm */
+    /** TODO: may need to clean up stack. */
+    <- "push dword [rbp+4]"
+    <- "call perror"
+}
 
-    /** Inline assembly x86 */
-    <- "mov edx, 1"
-    <- "mov ebx, 2"
-    <- "mov eax, 4"
-    <- "mov ecx, [rbp-1]"
-    <- ".next:"
-    <- "movzx al, byte [ecx]"
-    <- "inc ecx"
-    <- "cmp al, 0"
-    <- "je .done"
-    <- "syscall"
-    <- "jmp .next"
-    <- ".done:"
-
+panic := func(err: _StdError) {
+    printStderr(err.msg)
     exit(err.code)
 }
 
 exit := func(code: int) {
-    /** Inline assembly x86 */
-    <- "mov ebx, [rbp+4]"
-    <- "mov eax, 1"
-    <- "syscall" // syscall
+    /** Inline asm */
+    /** TODO: may need to clean up stack. */
+    <- "mov eax, [rbp+4]"
+    <- "call exit"
+
+    /** Failed if we're here */
+
+    printStderr("External: `exit()` failed for an unknown reason...")
 }
 
 assert := func(con: bool, msg: string) {    

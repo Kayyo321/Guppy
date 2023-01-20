@@ -8,7 +8,7 @@ vector := struct {
     z: float
     
     printvec := func() >> v {
-        io | println("(", v.x, ", ", v.y, ", ", v.z, ")")
+        io | printfln("(%f, %f, %f)", x, y, z)
     }
 }
 

@@ -1,0 +1,43 @@
+package windows
+
+import std
+
+_CLink <- CreateWindowExA
+_CLink <- DefWindowProcA
+_CLink <- DispatchMessageA
+_CLink <- ExitProcess
+_CLink <- GetMessageA
+_CLink <- GetModuleHandleA
+_CLink <- IsDialogMessageA
+_CLink <- LoadImageA
+_CLink <- PostQuitMessage
+_CLink <- RegisterClassExA
+_CLink <- ShowWindow
+_CLink <- TranslateMessage
+_CLink <- UpdateWindow
+
+wndClassEx := struct {
+    cbSize:        int
+    style:         int
+    lpfnWndProc:   ptr
+    cbClsExtra:    int
+    cbWndExtra:    int
+    hInst:         ptr
+    hIcon:         ptr
+    hbrBackground: ptr
+    menuName:      string
+    className:     string
+    hIconSm:       ptr
+}
+
+wndMsg := struct {
+    hWnd:     ptr
+    msg:      string
+    padding1: int
+    wParam:   ptr
+    lParam:   ptr
+    tm:       int
+    x:        int
+    y:        int
+    padding2: int
+}

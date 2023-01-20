@@ -43,7 +43,7 @@ func build(files []string, flags map[string]string) string {
 				fmt.Println("<!>", err)
 			}
 
-			fmt.Println("Compiler exited from the lexer.")
+			fmt.Println("Guppy exited from the lexer.")
 			os.Exit(1)
 		}
 
@@ -56,7 +56,7 @@ func build(files []string, flags map[string]string) string {
 				fmt.Println("<!>", err)
 			}
 
-			fmt.Println("Compiler exited from the parser.")
+			fmt.Println("Guppy exited from the parser.")
 			os.Exit(1)
 		}
 

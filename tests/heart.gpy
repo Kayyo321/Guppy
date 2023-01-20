@@ -16,11 +16,11 @@ while true {
 
     for y: float = -.5; y <= .5; y += .01 {
         // Add beating effect
-        r: float = .4 + .05 * math | pow(.5 + .5 * sin(t * 6 + y * 2), 8)
+        r: float = .4 + .05 * math | pow(.5 + .5 * math | sin(t * 6 + y * 2), 8)
 
         for x: float = -.5; x <= .5; x += .01 {
             fbs := math | fabs(x)
-            z: float = -x * x - math | pow(1.2 * y - fbs * 2 / 3, 2) + r * r
+            z: float = -x * x - math | pow(1.2 * y - math | fbs * 2 / 3, 2) + r * r
 
             if z < 0 {
                 continue

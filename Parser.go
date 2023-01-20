@@ -36,6 +36,7 @@ const (
 	NdIncDec        = "Inc || Dec"
 	NdBinOp         = "Bin Op"
 	NdLit           = "Lit"
+	NdArrLit        = "Array Lit"
 	NdInln          = "Inline Asm"
 	NdIndex         = "Index"
 	NdEnum          = "Enum"
@@ -43,6 +44,8 @@ const (
 	NdRangeDef      = "Range Def"
 	NdDefer         = "Defer"
 	NdClean         = "Clean"
+	NdClink         = "C-Link"
+	NdAbbreviation  = "Abreviation"
 )
 
 type Node struct {
@@ -249,7 +252,7 @@ moreImp:
 func (p *Parser) typeToBSize() uint {
 	var bsize uint
 	switch p.t.tokenType {
-	case TkIntKw, TkUIntKw, TkUInt32Kw, TkInt32Kw, TkFloat32Kw:
+	case TkIntKw, TkUIntKw, TkUInt32Kw, TkInt32Kw, TkFloat32Kw, TkPtrKw, TkRangeKw:
 		bsize = 4
 	case TkInt64Kw, TKUint64Kw, TkFloat64Kw, TkStringKw:
 		bsize = 8
@@ -258,9 +261,6 @@ func (p *Parser) typeToBSize() uint {
 	case TkInt16Kw, TkUInt16Kw:
 		bsize = 2
 	case TkLBrack:
-		// [10, int]
-
-		// Skip '['
 		p.eat()
 
 		if p.t.tokenType == TkInt {
@@ -1158,6 +1158,31 @@ func (p *Parser) parseCleanStmt(into *Node, until []int8) []error {
 	return errs
 }
 
+func (p *Parser) parseClink(into *Node, until []int8) []error {
+	var errs []error
+
+	clk := into.child()
+	clk.nt = NdClink
+	clk.gt = p.t
+
+	if err := p.assert([]int8{TkArrow}); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	if err := p.assert([]int8{TkIdent}); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	idn := clk.child()
+	idn.nt = NdIdent
+	idn.gt = p.t
+	idn.sdata = p.t.sdata
+
+	return errs
+}
+
 func (p *Parser) rparse(into *Node, until []int8) []error {
 	var errs []error
 
@@ -1393,6 +1418,9 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 		case TkCleanKw:
 			errs = append(errs, p.parseCleanStmt(into, until)...)
 
+		case TkCLinkKw:
+			errs = append(errs, p.parseClink(into, until)...)
+
 		case TkEnumKw:
 			tk, err := p.peek()
 			if err != nil {
@@ -1420,6 +1448,27 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 
 			} else {
 				errs = append(errs, errors.New("Did not expect to find: "+p.t.toString()+" after enum declaration."))
+			}
+
+		case TkLBrack:
+			al := into.child()
+			al.nt = NdArrLit
+			al.gt = p.t
+
+			_until := until
+			_until = append(_until, []int8{TkComma, TkRBrack}...)
+
+			for p.t.tokenType != TkRBrack {
+				errs = append(errs, p.rparse(al, _until)...)
+				if p.t.tokenType == TkComma {
+					if err := p.eat(); err != nil {
+						errs = append(errs, err)
+						break
+					}
+				} else if p.t.tokenType != TkRBrack {
+					errs = append(errs, errors.New("Didn't expect to find token: "+p.t.toString()))
+					break
+				}
 			}
 
 		case TkReturnKw:
@@ -1465,6 +1514,12 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 
 		case TkWhiteSpace, TkSemicolon:
 			break
+
+		case TkAbreviation:
+			abr := into.child()
+			abr.nt = NdAbbreviation
+			abr.gt = p.t
+			abr.sdata = p.t.sdata
 
 		default:
 			errs = append(errs, errors.New("Did not expect to find token: "+p.t.toString()))
