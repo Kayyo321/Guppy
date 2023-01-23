@@ -11,14 +11,15 @@ func usage() {
 	fmt.Println("Usage: gup <interaction> <flags> <files>")
 	fmt.Println()
 	fmt.Println("<interaction>'s")
-	fmt.Println("    ├──> build : compile the following files into an executable.")
-	fmt.Println("    ├──> run   : compile the files, and run it after built.")
-	fmt.Println("    └──> edit  : edit a virtual file line by line, then save and or run it.")
+	fmt.Println("    ├──> build  : compile the following files into an executable.")
+	fmt.Println("    ├──> run    : compile the files, and run it after built.")
+	fmt.Println("    ├──> status : show that status of the Guppy compiler (i.e. everything is installed).")
+	fmt.Println("    └──> edit   : edit a virtual file line by line, then save and or run it.")
 	fmt.Println()
 	fmt.Println("<flags>")
-	fmt.Println("    ├──> '-o'   : build the files, and rename the output file.")
-	fmt.Println("    ├──> '-asm' : build the files to x86 assembly; instead of '.exe' || '.o'.")
-	fmt.Println("    └──> <!> TODO: think of more flags <!>")
+	fmt.Println("    ├──> '-o'     : build the files, and rename the output file: `-o mygup.exe`")
+	fmt.Println("    ├──> '-asm'   : build the files to nasm; instead of '.exe' || '.o'.")
+	fmt.Println("    └──> '-warns' : turns warnings either on || off: `-warns off`")
 	fmt.Println()
 	fmt.Println("<files>")
 	fmt.Println("    ├──> Anything that ends with '.gpy' || '.guppy' .")
@@ -27,7 +28,7 @@ func usage() {
 	os.Exit(0)
 }
 
-func status() {
+func exitAndStatus() {
 	code := 0
 
 	// Check if NASM (Netwide Assembler) is installed (or reachable) on the system.
@@ -62,6 +63,20 @@ func status() {
 	fmt.Println()
 	fmt.Println("If these tools are not installed on your system, run the installer again, or download them seperately.")
 	os.Exit(code)
+}
+
+// False = good
+func status() (bool, bool, bool) {
+	// Check if NASM (Netwide Assembler) is installed (or reachable) on the system.
+	_, err := exec.Command("nasm", "-v").Output()
+
+	// Check if GCC (GNU C Compiler) is installed (or reachable) on the system.
+	_, _err := exec.Command("gcc", "-v").Output()
+
+	// Check if golang is installed on the system.
+	_, __err := exec.Command("go", "version").Output()
+
+	return err == nil, _err == nil, __err == nil
 }
 
 func build(files []string, flags map[string]string) string {
@@ -99,6 +114,22 @@ func build(files []string, flags map[string]string) string {
 		}
 
 		fmt.Println("AST {\n" + ast.toString() + "\n}")
+
+		var c Compiler
+		nasm, warns, errs := c.compile(*ast, ast, tokens)
+		for _, warn := range warns {
+			fmt.Println("<.>", warn)
+		}
+		if len(errs) != 0 {
+			for _, err := range errs {
+				fmt.Println("<!>", err)
+			}
+
+			fmt.Println("Guppy exited from the compiler.")
+			os.Exit(1)
+		}
+
+		fmt.Println(nasm)
 
 		// obj = append(obj, outputPath)
 	}
@@ -144,9 +175,25 @@ func main() {
 
 	switch os.Args[1] {
 	case "status":
-		status()
+		exitAndStatus()
 
 	case "build":
+		// Check if neccesary tools are installed.
+		// Golang is not essential.
+		x, y, _ := status()
+		code := 0
+		if x == true {
+			fmt.Println("NASM (Netwide Assembler) is not installed (or is unreachable) for this system.")
+			code = 1
+		}
+		if y == true {
+			fmt.Println("GCC (GNU C Compiler) is not installed (or is unreachable) for this system.")
+			code = 1
+		}
+		if code != 0 {
+			os.Exit(code)
+		}
+
 		build(files, flags)
 
 	case "run":

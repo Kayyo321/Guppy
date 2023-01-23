@@ -120,144 +120,162 @@ putbl := func(b: bool) {
 }
 
 printf := func(fmt: string, ...) {
-    bs: int = 4
-    l := len(fmt)
+    bs: uint = 4
+    i := 0
 
-    for i := 0; i < l; i++ {
-        x := fmt[i]
+    l := strlen(fmt)
 
-        if x == '%' {
-            i++
-            x = fmt[i]
+    while i < l {
+        match fmt[i] {
+            '%' {
+                i++
 
-            if x == 'd' {
-                toPrint: int
+                match fmt[i] {
+                    'd' {
+                        // Integer
+                        d: int
 
-                /** Inline asm */
-                <- "mov rax, [rbp-4]"
-                <- "mov [rbp-13], [rbp+rax]"
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-16], [rbp+rax]" // d   = params[rax]
 
-                puti(toPrint)
+                        puti(d)
 
-                bs += 4
-            } else if x == 'f' {
-                toPrint: float
+                        bs += 4
+                    }
 
-                /** Inline asm */
-                <- "mov rax, [rbp-4]"
-                <- "mov [rbp-17], [rbp+rax]"
+                    'f' {
+                        // Float
+                        f: float64
 
-                putf(toPrint)
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-20], [rbp+rax]" // f   = params[rax]
 
-                bs += 8
-            } else if x == 'c' {
-                toPrint: byte 
+                        putf(f)
 
-                /** Inline asm */
-                <- "mov rax, [rbp-4]"
-                <- "mov [rbp-10], [rbp+rax]
+                        bs += 8
+                    }
 
-                putb(toPrint)
+                    'c' {
+                        // Byte
+                        b: byte
 
-                bs++
-            } else if x == 'b' {
-                toPrint: bool 
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-13], [rbp+rax]" // b   = param[rax]
 
-                /** Inline asm */
-                <- "mov rax, [rbp-4]"
-                <- "mov [rbp-10], [rbp+rax]
+                        putb(b)
 
-                putbl(toPrint)
+                        bs++
+                    }
 
-                bs++
-            } else if x == 's' {
-                toPrint: string 
+                    'b' {
+                        // Boolean
+                        bl: bool
 
-                /** Inline asm */
-                <- "mov rax, [rbp-4]"
-                <- "mov [rbp-13], [rbp+rax]" // String is really char*
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-13], [rbp+rax]" // bl  = param[rax]
 
-                puts(toPrint)
+                        putbl(bl)
 
-                bs += 4
-            } else {
-                putb('%')
-                putb(x)
+                        bs++
+                    }
+
+                    ... {
+                        putb('%')
+                        putb(fmt[i])
+                    }
+                }
             }
-        } else {
-            putb(x)
+
+            ... {
+                putb(fmt[i])
+            }
         }
+
+        i++
     }
 }
 
 printfln := func(fmt: string, ...) {
-    bs: int = 4
-    l := len(fmt)
+    bs: uint = 4
+    i := 0
 
-    for i := 0; i < l; i++ {
-        x := fmt[i]
+    l := strlen(fmt)
 
-        if x == '%' {
-            i++
-            x = fmt[i]
+    while i < l {
+        match fmt[i] {
+            '%' {
+                i++
 
-            if x == 'd' {
-                toPrint: int
+                match fmt[i] {
+                    'd' {
+                        // Integer
+                        d: int
 
-                /** Inline asm */
-                <- "mov rax, [rbp-4]"
-                <- "mov [rbp-13], [rbp+rax]"
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-16], [rbp+rax]" // d   = params[rax]
 
-                puti(toPrint)
+                        puti(d)
 
-                bs += 4
-            } else if x == 'f' {
-                toPrint: float
+                        bs += 4
+                    }
 
-                /** Inline asm */
-                <- "mov rax, [rbp-4]"
-                <- "mov [rbp-17], [rbp+rax]"
+                    'f' {
+                        // Float
+                        f: float64
 
-                putf(toPrint)
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-20], [rbp+rax]" // f   = params[rax]
 
-                bs += 8
-            } else if x == 'c' {
-                toPrint: byte 
+                        putf(f)
 
-                /** Inline asm */
-                <- "mov rax, [rbp-4]"
-                <- "mov [rbp-10], [rbp+rax]
+                        bs += 8
+                    }
 
-                putb(toPrint)
+                    'c' {
+                        // Byte
+                        b: byte
 
-                bs++
-            } else if x == 'b' {
-                toPrint: bool 
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-13], [rbp+rax]" // b   = param[rax]
 
-                /** Inline asm */
-                <- "mov rax, [rbp-4]"
-                <- "mov [rbp-10], [rbp+rax]
+                        putb(b)
 
-                putbl(toPrint)
+                        bs++
+                    }
 
-                bs++
-            } else if x == 's' {
-                toPrint: string 
+                    'b' {
+                        // Boolean
+                        bl: bool
 
-                /** Inline asm */
-                <- "mov rax, [rbp-4]"
-                <- "mov [rbp-13], [rbp+rax]" // String is really char*
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-13], [rbp+rax]" // bl  = param[rax]
 
-                puts(toPrint)
+                        putbl(bl)
 
-                bs += 4
-            } else {
-                putb('%')
-                putb(x)
+                        bs++
+                    }
+
+                    ... {
+                        putb('%')
+                        putb(fmt[i])
+                    }
+                }
             }
-        } else {
-            putb(x)
+
+            ... {
+                putb(fmt[i])
+            }
         }
+
+        i++
     }
 
     putb('\n')

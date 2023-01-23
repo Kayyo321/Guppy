@@ -9,6 +9,52 @@ _CLink <- malloc
 _CLink <- realloc
 _CLink <- free
 
+strlen := func(s: string): uint {
+    l: uint = 0
+    s0 := s[0]
+
+    while s0 != '\0' {
+        l++
+        s0 = s[l]
+    } 
+
+    return l
+}
+
+/** 
+    Array in stack
+
+    +----------------------------+
+    |     Size of arr [...0]     |
+    |      value 0 [...1] or [0] |
+    |      value 1 [...2] or [1] |
+    |      value 2 [...3] or [2] |
+    |      value 3 [...4] or [3] |
+    |         ETC...             |
+    +----------------------------+
+*/
+arrlen := func(arr: [ptr]): uint {
+    l: uint = arr[...0] // Return the array value at real index 0; which is the size.
+    return l
+}
+
+/**
+    Range in heap
+
+    +-------------------------------+
+    |     Size of rng [...0]        |
+    | Type of the next value [...1] |
+    |     Value [...2] or [0]       |
+    | Type of the next value [...3] |
+    |     Value [...4] or [1]       |
+    |           ETC...              |
+    +-------------------------------+
+*/
+rnglen := func(rng: range): uint {
+    l: uint = rng[...0] // Return the range value at real index 0; which is the size.
+    return l
+}
+
 malloc := func(sz: uint): ptr {
     x: ptr
 

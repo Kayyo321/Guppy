@@ -36,6 +36,7 @@ const (
 	NdIncDec        = "Inc || Dec"
 	NdBinOp         = "Bin Op"
 	NdLit           = "Lit"
+	NdType          = "Type"
 	NdArrLit        = "Array Lit"
 	NdInln          = "Inline Asm"
 	NdIndex         = "Index"
@@ -48,6 +49,7 @@ const (
 	NdAbbreviation  = "Abreviation"
 	NdMatch         = "Match"
 	NdTernaryOp     = "Ternary Operation"
+	NdName          = "Name"
 )
 
 type Node struct {
@@ -299,6 +301,7 @@ func (p *Parser) parseVarDecl(into *Node, until []int8, names []Token) []error {
 
 	for _, name := range names {
 		nameN := vardcl.child()
+		nameN.nt = NdName
 		nameN.gt = &name
 		nameN.sdata = name.sdata
 	}
@@ -308,6 +311,10 @@ func (p *Parser) parseVarDecl(into *Node, until []int8, names []Token) []error {
 		errs = append(errs, err)
 		return errs
 	}
+
+	typ := vardcl.child()
+	typ.nt = NdType
+	typ.gt = p.t
 
 	vardcl.bytes = p.typeToBSize() * uint(len(names))
 	if vardcl.bytes == 0 {
@@ -378,6 +385,7 @@ func (p *Parser) parseVarDef(into *Node, until []int8, names []Token) []error {
 
 	for _, name := range names {
 		nameN := vardcl.child()
+		nameN.nt = NdName
 		nameN.gt = &name
 		nameN.sdata = name.sdata
 	}
@@ -1607,6 +1615,12 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 			inln := into.child()
 			inln.nt = NdInln
 			inln.gt = p.t
+
+		case TkEllipsis:
+			el := into.child()
+			el.nt = NdEllipsis
+			el.gt = p.t
+			el.sdata = "..."
 
 		case TkInt, TkFloat, TkString, TkChar, TkNilKw, TkLParen, TkNot:
 			errs = append(errs, p.parseExpr(into, until)...)

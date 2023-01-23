@@ -95,6 +95,95 @@ reverseStr := func(s: string): string {
     return str
 }
 
+/** 
+    Example: 
+    
+    x := stringf("%d/%d/%d -- %d:%d:%d", day, month, year, hour, minute, second); 
+*/
+stringf := func(fmt: string, ...): string {
+    bs: uint = 4
+    i := 0
+
+    l := strlen(fmt)
+
+    s: string
+
+    while i < l {
+        match fmt[i] {
+            '%' {
+                i++
+
+                match fmt[i] {
+                    'd' {
+                        // Integer
+                        d: int
+
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-16], [rbp+rax]" // d   = params[rax]
+
+                        s += intToString(d)
+
+                        bs += 4
+                    }
+
+                    'f' {
+                        // Float
+                        f: float64
+
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-20], [rbp+rax]" // f   = params[rax]
+
+                        s += floatToString(f)
+
+                        bs += 8
+                    }
+
+                    'c' {
+                        // Byte
+                        b: byte
+
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-13], [rbp+rax]" // b   = param[rax]
+
+                        s += byteToString(b)
+
+                        bs++
+                    }
+
+                    'b' {
+                        // Boolean
+                        bl: bool
+
+                        /** Inline asm */
+                        <- "mov rax, [rbp-4]"        // rax = bs
+                        <- "mov [rbp-13], [rbp+rax]" // bl  = param[rax]
+
+                        s += boolToString(bl)
+
+                        bs++
+                    }
+
+                    ... {
+                        s += '%'
+                        s += fmt[i]
+                    }
+                }
+            }
+
+            ... {
+                s += fmt[i]
+            }
+        }
+
+        i++
+    }
+
+    return s
+}
+
 /** Int to... */
 intToString := func(n: int): string {
     result: string
@@ -216,4 +305,14 @@ bytesToString := func(bs: [byte]): string {
         i++
         x = bs[i]
     }
+}
+
+/** Boolean to... */
+
+boolToString := func(bl: bool): string {
+    return ?(bl): "true" ! "false"
+}
+
+boolToByte := func(bl: bool): byte {
+    return ?(bl): 1 ! 0
 }
