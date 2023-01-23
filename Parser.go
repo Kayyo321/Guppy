@@ -46,6 +46,8 @@ const (
 	NdClean         = "Clean"
 	NdClink         = "C-Link"
 	NdAbbreviation  = "Abreviation"
+	NdMatch         = "Match"
+	NdTernaryOp     = "Ternary Operation"
 )
 
 type Node struct {
@@ -534,7 +536,7 @@ func (p *Parser) parseExpr(into *Node, until []int8) []error {
 			break
 		}
 
-		if p.t.tokenType == TkInt || p.t.tokenType == TkFloat || p.t.tokenType == TkString || p.t.tokenType == TkNilKw {
+		if p.t.tokenType == TkInt || p.t.tokenType == TkChar || p.t.tokenType == TkFloat || p.t.tokenType == TkString || p.t.tokenType == TkNilKw {
 			lit := Node{}
 			lit.nt = NdLit
 			lit.gt = p.t
@@ -718,7 +720,7 @@ func (p *Parser) parseExpr(into *Node, until []int8) []error {
 				call.sdata = "VarCall"
 				queue = append(queue, call)
 			}
-		} else if p.t.tokenType == TkAdd || p.t.tokenType == TkSub || p.t.tokenType == TkMul || p.t.tokenType == TkQuo || p.t.tokenType == TkRem || p.t.tokenType == TkEql || p.t.tokenType == TkNeq || p.t.tokenType == TkLeq || p.t.tokenType == TkLss || p.t.tokenType == TkGeq || p.t.tokenType == TkGtr || p.t.tokenType == TkLand || p.t.tokenType == TkLor {
+		} else if p.t.tokenType == TkAdd || p.t.tokenType == TkSub || p.t.tokenType == TkMul || p.t.tokenType == TkQuo || p.t.tokenType == TkRem || p.t.tokenType == TkEql || p.t.tokenType == TkNeq || p.t.tokenType == TkLeq || p.t.tokenType == TkLss || p.t.tokenType == TkGeq || p.t.tokenType == TkGtr || p.t.tokenType == TkLand || p.t.tokenType == TkLor || p.t.tokenType == TkNot {
 			o1 := p.t
 
 			for len(stack) > 0 {
@@ -787,11 +789,6 @@ func (p *Parser) parseExpr(into *Node, until []int8) []error {
 	}
 
 	for len(stack) > 0 {
-		//if stack[len(stack)-1].gt.tokenType == TkLParen {
-		//	errs = append(errs, errors.New("Mismatched parenthesis: "+p.t.toString()))
-		//	break
-		//}
-
 		queue = append(queue, stack[len(stack)-1])
 		stack = stack[:len(stack)-1]
 	}
@@ -1158,6 +1155,102 @@ func (p *Parser) parseCleanStmt(into *Node, until []int8) []error {
 	return errs
 }
 
+func (p *Parser) parseMatch(into *Node, until []int8) []error {
+	var errs []error
+
+	mtch := into.child()
+	mtch.nt = NdMatch
+	mtch.gt = p.t
+	mtch.sdata = "match"
+
+	cond := mtch.child()
+	cond.nt = NdBody
+
+	errs = append(errs, p.rparse(cond, []int8{TkLBrace})...)
+
+	// Skip '{'
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	body := mtch.child()
+	body.nt = NdBody
+
+	for p.t.tokenType != TkRBrace {
+		_cond := body.child()
+		_cond.nt = NdLit
+
+		for p.t.tokenType == TkWhiteSpace {
+			if err := p.eat(); err != nil {
+				errs = append(errs, err)
+				break
+			}
+		}
+
+		if p.t.tokenType == TkEllipsis {
+			x := _cond.child()
+			x.nt = NdEllipsis
+			x.gt = p.t
+			x.sdata = "..."
+
+			if err := p.assert([]int8{TkLBrace}); err != nil {
+				errs = append(errs, err)
+				return errs
+			}
+		} else {
+			errs = append(errs, p.rparse(_cond, []int8{TkLBrace, TkRBrace})...)
+
+			if p.t.tokenType != TkLBrace {
+				break
+			}
+		}
+
+		_body := _cond.child()
+		_body.nt = NdBody
+
+		errs = append(errs, p.rparse(_body, []int8{TkRBrace})...)
+
+		if err := p.eat(); err != nil {
+			errs = append(errs, err)
+			break
+		}
+	}
+
+	return errs
+}
+
+func (p *Parser) parseTernary(into *Node, until []int8) []error {
+	var errs []error
+
+	tern := into.child()
+	tern.nt = NdTernaryOp
+	tern.gt = p.t
+
+	if err := p.assert([]int8{TkLParen}); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	errs = append(errs, p.parseExpr(tern, []int8{TkRParen})...)
+
+	if err := p.assert([]int8{TkColon}); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	errs = append(errs, p.rparse(tern, []int8{TkNot})...)
+
+	if err := p.eat(); err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	errs = append(errs, p.rparse(tern, []int8{TkWhiteSpace, TkSemicolon})...)
+
+	return errs
+}
+
 func (p *Parser) parseClink(into *Node, until []int8) []error {
 	var errs []error
 
@@ -1421,6 +1514,12 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 		case TkCLinkKw:
 			errs = append(errs, p.parseClink(into, until)...)
 
+		case TkMatchKw:
+			errs = append(errs, p.parseMatch(into, until)...)
+
+		case TkQuotMrk:
+			errs = append(errs, p.parseTernary(into, until)...)
+
 		case TkEnumKw:
 			tk, err := p.peek()
 			if err != nil {
@@ -1509,7 +1608,7 @@ func (p *Parser) rparse(into *Node, until []int8) []error {
 			inln.nt = NdInln
 			inln.gt = p.t
 
-		case TkInt, TkFloat, TkString, TkNilKw, TkLParen:
+		case TkInt, TkFloat, TkString, TkChar, TkNilKw, TkLParen, TkNot:
 			errs = append(errs, p.parseExpr(into, until)...)
 
 		case TkWhiteSpace, TkSemicolon:

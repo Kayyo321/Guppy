@@ -4,6 +4,49 @@ package std
 _CLink <- exit
 _CLink <- perror
 
+/** Link from stdlib.h */
+_CLink <- malloc
+_CLink <- realloc
+_CLink <- free
+
+malloc := func(sz: uint): ptr {
+    x: ptr
+
+    /** Inline asm */
+    <- "push [rbp+8]" // byte count
+    <- "call malloc"
+    <- "mov [rbp-4], [eax]"
+
+    return x
+}
+
+realloc := func(p: ptr, nSz: uint): ptr {
+    x: ptr
+
+    /** Inline asm */
+    <- "push [rbp+12]" // byte count
+    <- "push [rbp+8]"  // old ptr
+    <- "call realloc"
+    <- "mov [rbp-4], [eax]"
+
+    return x
+}
+
+free := func(p: ptr): _StdError {
+    stdErr: _StdError
+
+    if p == nil {
+        stdErr.msg  = "Cannot free nil memory."
+        stdErr.code = enum._BadAddress
+    }
+
+    /** Inline asm */
+    <- "push [rbp+12]" // old ptr
+    <- "call free"
+
+    return stdErr
+}
+
 /** Error handling */
 
 /** General error codes */
@@ -45,7 +88,6 @@ newError := func(_msg: string, _code: int): _StdError {
 
 printStderr := func(_msg: string) {
     /** Inline asm */
-    /** TODO: may need to clean up stack. */
     <- "push dword [rbp+4]"
     <- "call perror"
 }
@@ -57,7 +99,6 @@ panic := func(err: _StdError) {
 
 exit := func(code: int) {
     /** Inline asm */
-    /** TODO: may need to clean up stack. */
     <- "mov eax, [rbp+4]"
     <- "call exit"
 
@@ -68,6 +109,6 @@ exit := func(code: int) {
 
 assert := func(con: bool, msg: string) {    
     if !con {
-        panic(msg, 1)
+        panic(msg, enum._Error)
     }
 }

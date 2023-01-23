@@ -1,0 +1,64 @@
+/** 
+    Match statement in Guppy.
+
+    This match keyword is used to do different operations based on a single value.
+
+    The structure is as follows:
+
+    ```
+    match value {
+        aCondition {
+            // Do something.
+        }
+
+        aSecondCondition {
+            // Do something else.
+        }
+
+        ... {
+            // If the others aren't true, do this.
+        }
+    }
+    ```
+*/
+
+/** 
+    Example
+
+    There are 4 enums:
+    ```_Hello, _Bonjour, _Hola, _OtherLang```
+
+    The function ```language``` checks on which of these greetings it is, and returns a string based on the language.
+    For example: _Hello => "english", _Bounjour => "french", etc.
+*/
+
+enum {
+    _Hello,
+    _Bonjour,
+    _Hola,
+    _OtherLang
+}
+
+language := func(greeting: int): string {
+    match greeting {
+        enum._Hello {
+            return "english"
+        }
+
+        enum._Bonjour {
+            return "french"
+        }
+
+        enum._Hola {
+            return "spanish"
+        }
+
+        enum._OtherLang {
+            return "other language"
+        }
+
+        ... {
+            return "unkown language"
+        }
+    }
+}

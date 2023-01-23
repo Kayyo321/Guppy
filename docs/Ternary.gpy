@@ -1,0 +1,21 @@
+/** 
+    Ternary operator in Guppy.
+
+    The ternary operator Guppy is like an inline if statement.
+
+    The structure is as follows
+
+    ```?( condition ): option1 ! option2```
+*/
+
+/** 
+    Example:
+
+    This function (isOver100) takes in an integer, and returns a boolean.
+    This function uses the ternary operator to check if the integer (x) is greater than 100.
+    It returns true if so; false if not.
+*/
+
+isOver100 := func(x: int): bool {
+    return ?(x > 100): true ! false
+}

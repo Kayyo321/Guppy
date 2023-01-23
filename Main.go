@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -24,6 +25,43 @@ func usage() {
 	fmt.Println("    ├──> Support absolute && relative file path.")
 	fmt.Println("    └──> (by default, output name is \"a.exe\", not the first file's name.")
 	os.Exit(0)
+}
+
+func status() {
+	code := 0
+
+	// Check if NASM (Netwide Assembler) is installed (or reachable) on the system.
+	nasmV, err := exec.Command("nasm", "-v").Output()
+	if err != nil {
+		fmt.Println("NASM (Netwide Assembler) is not installed (or is unreachable) for this system.")
+		code = 1
+	} else {
+		fmt.Println("NASM (Netwide Assembler) is installed && reachable on this system:\n\n", nasmV)
+	}
+
+	// Check if GCC (GNU C Compiler) is installed (or reachable) on the system.
+	gccV, _err := exec.Command("gcc", "-v").Output()
+	if _err != nil {
+		fmt.Println("GCC (GNU C Compiler) is not installed (or is unreachable) for this system.")
+		code = 1
+	} else {
+		fmt.Println("GCC (GNU C Compiler) is installed && reachable on this system:\n\n", gccV)
+	}
+
+	// Check if golang is installed on the system.
+	goV, __err := exec.Command("go", "version").Output()
+	if __err != nil {
+		fmt.Println("Golang is not installed (or is unreachable) for this system")
+		fmt.Println("(Not fatal; Guppy is built to an executable).")
+	} else {
+		fmt.Println("Golang is installed && reachable on this system:\n\n", goV)
+	}
+
+	fmt.Println("Guppy needs NASM to compile it's assembly code (based on the source file) to machine code.")
+	fmt.Println("Guppy needs GCC to link it's machine code to the CSL (C Standard Library).")
+	fmt.Println()
+	fmt.Println("If these tools are not installed on your system, run the installer again, or download them seperately.")
+	os.Exit(code)
 }
 
 func build(files []string, flags map[string]string) string {
@@ -105,6 +143,9 @@ func main() {
 	fmt.Println(flags)
 
 	switch os.Args[1] {
+	case "status":
+		status()
+
 	case "build":
 		build(files, flags)
 
@@ -112,6 +153,7 @@ func main() {
 		run(files, flags)
 
 	case "edit":
+		// TODO: make edit.
 		break
 
 	default:

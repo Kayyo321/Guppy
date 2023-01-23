@@ -117,6 +117,8 @@ const (
 	TkWhileKw int8 = 95
 	TkCLinkKw int8 = 96
 	TkPtrKw   int8 = 97
+	TkMatchKw int8 = 98
+	TkQuotMrk int8 = 99
 )
 
 var tokenTypeStrings []string = []string{
@@ -218,6 +220,8 @@ var tokenTypeStrings []string = []string{
 	"while",
 	"_CLink",
 	"ptr",
+	"match",
+	"__tk_Quotation_Mark",
 }
 
 type Token struct {
@@ -724,6 +728,7 @@ func lex(txt string) ([]Token, []error) {
 					i++
 					token.tokenType = TkNot
 					token.sdata = "!"
+					token.unary = true
 				}
 
 			case "(":
@@ -760,6 +765,11 @@ func lex(txt string) ([]Token, []error) {
 				i++
 				token.tokenType = TkComma
 				token.sdata = ","
+
+			case "?":
+				i++
+				token.tokenType = TkQuotMrk
+				token.sdata = "?"
 
 			default:
 				errs = append(errs, errors.New("Unrecognized character: "+string(c)))

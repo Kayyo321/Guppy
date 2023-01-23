@@ -5,19 +5,18 @@ import convert
 /** Link from time.h */
 _CLink <- time
 _CLink <- localtime
-_CLink <- asctime
 _CLink <- usleep
 
-nanosecond:  int64, const = 1
-microsecond: int64, const = 1000 * nanosecond
-millisecond: int64, const = 1000 * microsecond
-second:      int64, const = 1000 * millisecond
-minute:      int64, const = 60   * second
-hour:        int64, const = 60   * minute
-day:         int64, const = 24   * hour
-week:        int64, const = 7    * day
-avgMonth:    int64, const = 30   * week // Average
-avgYear:     int64, const = 365  * day  // Average
+nanosecond:  int, const = 1
+microsecond: int, const = 1000 * nanosecond
+millisecond: int, const = 1000 * microsecond
+second:      int, const = 1000 * millisecond
+minute:      int, const = 60   * second
+hour:        int, const = 60   * minute
+day:         int, const = 24   * hour
+week:        int, const = 7    * day
+avgMonth:    int, const = 30   * week // Average
+avgYear:     int, const = 365  * day  // Average
 
 _TimeInfo := struct {
     mday: int
@@ -30,36 +29,63 @@ _TimeInfo := struct {
     toString := func(): string >> ti {
         s: string
 
-        s += ti.mday
+        s += convert | intToString(ti.mday)
         s += '/'
-        s += ti.mon
+        s += convert | intToString(ti.mon)
         s += '/'
-        s += ti.year
+        s += convert | intToString(ti.year)
         s += " -- "
-        s += ti.hour
+        s += convert | intToString(ti.hour)
         s += ':'
-        s += ti.min
+        s += convert | intToString(ti.min)
         s += ':'
-        s += ti.second
+        s += convert | intToString(ti.sec)
 
         return s
     }
 }
 
 time := func(): _TimeInfo {
-    /*  time_t t = time(NULL);
-        struct tm *tm = localtime(&t);
-        printf("%s", asctime(tm));
-        return 0;
-    }*/
+    tt: int
+    _mday: int
+    _mon:  int
+    _year: int
+    _hour: int
+    _min:  int
+    _sec:  int
+
+    /** Inline asm */
+    <- "call time"
+    <- "mov [rbp-4], eax"
+    <- "push dword, [rbp-4]"
+    <- "call localtime"
+    <- "add esp, 4"
+    <- "mov ax, [eax+4]"  // Month
+    <- "mov [rbp-8], ax"
+    <- "mov ax, [eax+8]"  // Day
+    <- "mov [rbp-12], ax"
+    <- "mov ax, [eax+12]" // Year
+    <- "mov [rbp-16], ax"
+    <- "mov ax, [eax+16]" // Hour
+    <- "mov [rbp-20], ax"
+    <- "mov ax, [eax+20]" // Minute
+    <- "mov [rbp-24], ax"
+    <- "mov ax, [eax+24]" // Second
+    <- "mov [rbp-28], ax"
 
     ti: _TimeInfo
-
-    /** TODO: Impliment */
+    ti.mday = _mday
+    ti.mon  = _mon
+    ti.year = _year
+    ti.hour = _hour
+    ti.min  = _min
+    ti.sec  = _sec
 
     return ti
 }
 
-sleep := func(ms: int64) {
-    /** TODO: Impliment */
+sleep := func(ms: int) {
+    /** Inline asm */
+    <- "push dword [rbp+4]"
+    <- "call usleep"
 }
