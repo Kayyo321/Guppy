@@ -1,6 +1,7 @@
 # Guppy
 
 <p align="center">A smart, and speedy language that compiles to machine code.</p>
+<img src="logo.png" alt="Guppy Lang Logo" width="1920" height="1920">
 
 # Installation
 
