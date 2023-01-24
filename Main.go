@@ -1,23 +1,11 @@
 package main
 
 import (
-	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
-
-type Version struct {
-	XMLName xml.Name `xml:"version"`
-	num     string   `xml:"num"`
-	upTime  string   `xml:"tm"`
-}
-
-func (v *Version) toString() string {
-	return fmt.Sprintf("Version Number: %s, Update Time: %s", v.num, v.upTime)
-}
 
 func usage() {
 	fmt.Println("Usage: gup <interaction> <flags> <files>")
@@ -214,27 +202,6 @@ func main() {
 	case "edit":
 		// TODO: make edit.
 		break
-
-	case "addupdate":
-		xmlFile, err := os.Open("version.xml")
-		if err != nil {
-			fmt.Println("Error opening version file...", err)
-			os.Exit(1)
-		}
-
-		defer func(xmlFile *os.File) {
-			err := xmlFile.Close()
-			if err != nil {
-				return
-			}
-		}(xmlFile)
-
-		byteVal, _ := ioutil.ReadAll(xmlFile)
-		var ver Version
-
-		if err := xml.Unmarshal(byteVal, &ver); err != nil {
-			return
-		}
 
 	default:
 		fmt.Println("Unknown interaction:", os.Args[1])
